@@ -154,26 +154,120 @@ def log_iteration(iteration, intent, query, keywords, score, strengths, weakness
     logging.info(json.dumps(entry))
 
 # --- Supervisor Loop ---
-def supervisor_loop(user_message, state: ConversationState, max_loops=5, min_sources=1):
+def compress_with_llm(text, state: ConversationState, role="draft"):
+    if not text:
+        return ""
+    prompt = f"""
+Summarize the following {role} into a concise version under 200 words.
+Preserve all key information, context, and improvement points.
+Do not omit important details.
+
+Text:
+{text}
+"""
+    summary, _, _ = query_llm(prompt, state)
+    return summary
+    
+def compress_text(text, max_len=800):
+    """Trim drafts/feedback to avoid token bloat."""
+    return text[:max_len] if text else ""
+
+def compress_sources(results, max_items=5, max_len=300):
+    """Summarize sources before feeding into generation prompt."""
+    items = results.get("results", [])
+    formatted = []
+    for item in items[:max_items]:
+        snippet = item.get("content", "")[:max_len]
+        formatted.append(f"- {item['title']} ({item['url']})\n{snippet}")
+    return "\n".join(formatted)
+
+def build_generation_prompt(intent, formatted_results, user_message, last_draft=None, last_feedback=None, state=None):
+    continuity = ""
+    if last_draft and last_feedback and state:
+        continuity = (
+            f"\nPrevious Draft (summary):\n{compress_with_llm(last_draft, state, role='draft')}\n"
+            f"Supervisor Feedback (summary):\n{compress_with_llm(last_feedback, state, role='feedback')}\n"
+        )
+    return f"{continuity}\nUser Request:\n{user_message}\n\nTask: Produce a {intent} using these sources (summarized):\n{formatted_results}"
+
+def build_supervisor_prompt(intent, draft_answer, round_num):
+    return f"""
+You are reviewing a draft {intent}.
+
+### Draft {intent}
+{draft_answer}
+
+### Evaluation Criteria
+- Must integrate at least 3 distinct sources.
+- Must include context (dates, locations, examples).
+- Must synthesize perspectives, not just list facts.
+- Must highlight gaps, contradictions, or uncertainties.
+- Must use a professional tone suitable for publication.
+
+Escalating Standards:
+- Round 1: Basic coverage.
+- Round 2: Add ≥3 sources.
+- Round 3: Integrate perspectives, highlight contradictions.
+- Round 4+: Professional polish, citations, synthesis.
+
+Scoring Rules:
+1 = poor, missing most criteria
+2 = weak, partial coverage
+3 = adequate, but shallow
+4 = strong, but still improvable
+5 = professional quality, all criteria met
+
+Dynamic Strictness:
+- Early rounds (1–2): allow 2–3 if partial coverage.
+- Later rounds (≥3): do NOT give 4 or 5 unless ALL criteria are satisfied.
+
+Respond ONLY in this format:
+
+Score: X/5
+Strengths: …
+Weaknesses: …
+Improvements: …
+Final Answer (if forced): …
+"""
+
+DEEP_RESEARCH = True  # Toggle this flag per query
+
+def supervisor_loop(user_message, state: ConversationState, max_loops=None, min_sources=1):
     intent = classify_intent(user_message, state)
     query = user_message
+
+    # Adjust loop depth and strictness based on mode
+    if DEEP_RESEARCH:
+        max_loops = max_loops or 10
+        strictness = "High"
+    else:
+        max_loops = max_loops or 3
+        strictness = "Normal"
 
     for i in range(max_loops):
         keywords, _, _ = query_llm(f"Generate search keywords for: {query}", state)
         results = search_engine(keywords)
-        formatted = format_results(results)
+        formatted = compress_sources(results)
 
-        gen_prompt = build_generation_prompt(intent, formatted, user_message, state.last_draft, state.last_feedback)
+        gen_prompt = build_generation_prompt(
+            intent, formatted, user_message,
+            state.last_draft, state.last_feedback, state
+        )
         draft, tokens_used, cost = query_llm(gen_prompt, state)
 
-        supervisor_prompt = build_supervisor_prompt(intent, draft)
+        supervisor_prompt = build_supervisor_prompt(intent, draft, i+1)
         review, _, _ = query_llm(supervisor_prompt, state)
         score, strengths, weaknesses, improvements, final_answer = parse_review(review)
 
         state.last_query = query
         state.last_draft = draft
         state.last_feedback = review
-        state.iteration_history.append({"iteration": i+1, "score": score, "draft": draft, "feedback": review})
+        state.iteration_history.append({
+            "iteration": i+1,
+            "score": score,
+            "draft": draft,
+            "feedback": review
+        })
 
         log_iteration(
             iteration=i+1,
@@ -184,23 +278,56 @@ def supervisor_loop(user_message, state: ConversationState, max_loops=5, min_sou
             strengths=strengths,
             weaknesses=weaknesses,
             improvements=improvements,
-            approved=(score >= 4),
+            approved=(score >= 4 and not improvements),
             tokens_used=tokens_used,
             cost_estimate=cost,
-            final_answer=draft if score >= 4 else final_answer
+            final_answer=draft if (score >= 4 and not improvements) else final_answer
         )
 
-        if score >= 4:
+        # Guided refinement: always push for sources, contradictions, examples
+        if score < 4 or improvements:
+            query = (
+                f"{user_message}\nRefine by: {improvements}\n"
+                f"Add at least 3 credible sources, highlight contradictions, expand with concrete examples."
+            )
+
+        if score >= 4 and not improvements:
             state.last_review_passed = True
             return draft
         elif i == max_loops - 1:
             state.last_review_passed = False
-            return final_answer or draft
-        else:
-            query = f"{query} (refine: {improvements})"
+            return draft  # Always return the last draft for review
 
     return state.last_draft or "No draft available."
+    
+import re
+import datetime
 
+def safe_filename_from_query(query, suffix=".md"):
+    # Lowercase and replace spaces with underscores
+    fname = query.lower().strip().replace(" ", "_")
+    # Remove unsafe characters
+    fname = re.sub(r'[^a-z0-9_\-]', "", fname)
+    # Truncate if too long
+    if len(fname) > 50:
+        fname = fname[:50]
+    # Add timestamp suffix (YYYYMMDD_HHMMSS)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{fname}_{timestamp}{suffix}"
+    
+def save_markdown(content, query, history=None):
+    filename = safe_filename_from_query(query)
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("# Final Generated Answer\n\n")
+        f.write(content)
+        if history:
+            f.write("\n\n---\n\n# Iteration History\n")
+            for h in history:
+                f.write(f"\n## Round {h['iteration']} (Score {h['score']}/5)\n")
+                f.write(f"\n**Draft:**\n\n{h['draft']}\n")
+                f.write(f"\n**Feedback:**\n\n{h['feedback']}\n")
+    print(f"Markdown file saved as {filename}")
+    
 if __name__ == "__main__":
     state = ConversationState()
     answer = supervisor_loop("Compare NeurIPS and ICML in terms of focus, scale, and industry relevance.", state)

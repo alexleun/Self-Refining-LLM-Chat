@@ -1,75 +1,137 @@
-# Self-Refining LLM Chat System
 
-A prototype chat system that combines **LM Studio**, **SearXNG**, and **Docker MCP tools** to create a self-refining retrieval-augmented generation (RAG) loop.  
-The system uses an LLM both as a **worker** (search + summarize) and as a **supervisor** (review + refine), iterating until the response meets quality standards.
+# Self-Refining LLM Chat – Sketch v3
+
+## Overview
+Sketch v3 is the third iteration of the **Self-Refining LLM Chat System**, designed to overcome the stagnation observed in v2’s linear supervisor loop.  
+This version introduces **multi-role orchestration** and a persistent **EvidenceStore** to ensure every round injects fresh sources, domain insights, and rigorous auditing.
 
 ---
 
 ## ✨ Features
-- **Intent Analysis**: LLM interprets user requests and generates search keywords.
-- **Search Integration**: Queries SearXNG (`http://localhost:8888`) for fresh results.
-- **Summarization**: LLM condenses retrieved information into clear answers.
-- **Self-Review Loop**: LLM critiques its own output and refines queries until results are sufficient.
-- **Conversation Continuation**: Distinguishes between *new queries* and *follow-up questions* to avoid redundant searches.
-- **Tool Integration**: Docker MCP provides external capabilities (scraping, file access, APIs).
+
+- **Multi-Role Pipeline**
+  - **Collector** – gathers and structures search results into evidence packs.
+  - **Editor** – drafts coherent narrative answers with citations.
+  - **Auditor** – checks drafts against evidence, flags contradictions and gaps.
+  - **Specialist** – injects domain-specific insights and examples.
+  - **Supervisor** – scores drafts, enforces rubric, and decides continuation.
+
+- **EvidenceStore**
+  - Persistent storage of search results across rounds.
+  - Structured schema with sources, summaries, contradictions, and gaps.
+  - Accessible to all roles for traceability and auditability.
+
+- **Dynamic Refinement**
+  - Supervisor feedback drives query refinement.
+  - Collector refreshes search with new keywords each round.
+  - Prevents stagnation by continuously injecting new evidence.
+
+- **Audit Trail**
+  - Iteration history logs drafts, audits, reviews, and scores.
+  - Markdown export includes final answer + role contributions.
+
+- **Dashboard Integration**
+  - Charts for score progression, token usage, and role impact.
+  - Legends placed outside chart area for clarity.
 
 ---
 
-## 🏗️ Architecture
-1. **LM Studio** – Local LLM server (`http://localhost:1234`) running `openai/gpt-oss-20b`.
-2. **SearXNG** – Local meta-search engine (`http://localhost:8888`) with JSON API (`format=json`).
-3. **Controller Script** – Python orchestrator that manages the loop.
-4. **Conversation State Manager** – Tracks last query, keywords, results, and summary to decide whether to search again or continue.
-5. **Docker MCP Tools** – Extend functionality for specialized tasks.
+## 🧩 Architecture
+
+```
+User Query
+   ↓
+Collector → Evidence Pack → EvidenceStore
+   ↓
+Editor → Draft
+   ↓
+Auditor → Gap Report
+   ↓
+Specialist → Enriched Draft
+   ↓
+Supervisor → Score + Feedback
+   ↓
+Loop Control → Refine Query → Collector refresh
+```
 
 ---
 
-## 🔄 Conversation Flow
+## 📂 EvidenceStore Schema
 
-### Mode 1: New Search
-- User asks a fresh question.
-- LLM generates search keywords.
-- SearXNG queried for results.
-- LLM summarizes results.
-- Supervisor loop reviews and refines until “good enough.”
-- Answer returned to user.
-
-### Mode 2: Continuation
-- User asks a follow-up (e.g., “tell me more about NeurIPS”).
-- No new search triggered.
-- LLM uses **previous summary + new user message**.
-- Supervisor loop refines reasoning only.
-- Answer returned to user.
+```json
+{
+  "query_id": "uuid",
+  "round": 1,
+  "timestamp": "2025-12-30T15:39:00Z",
+  "sources": [
+    {
+      "source_id": "src_001",
+      "title": "NeurIPS 2025 Program Overview",
+      "snippet": "Startup & Innovation track...",
+      "url": "https://neurips.cc/Conferences/2025",
+      "date": "2025-12-01",
+      "relevance_score": 0.92,
+      "domain": "conference",
+      "collector_notes": "High VC density."
+    }
+  ],
+  "summary": {
+    "bullet_points": [
+      "NeurIPS 2025 includes Startup & Innovation track with VC pitch nights."
+    ],
+    "contradictions": [],
+    "gaps": []
+  }
+}
+```
 
 ---
 
-## 🚀 Quick Start
+## 🔄 Iteration Loop
 
-### Prerequisites
-- Python 3.11+
-- LM Studio running in API server mode
-- SearXNG running locally on port `8888`
-- Docker MCP server available for tool calls
+1. **Collector** → runs search, stores results in EvidenceStore.  
+2. **Editor** → drafts narrative from latest evidence pack.  
+3. **Auditor** → checks draft against all sources, updates contradictions/gaps.  
+4. **Specialist** → enriches draft with domain insights.  
+5. **Supervisor** → scores draft, provides feedback, decides continuation.  
+6. **Loop Control** → refines query, Collector refreshes search, repeat until score ≥ 4 or max rounds.
 
-### Installation
-```bash
-git clone <your-private-repo-url>
-cd Self-Refing-LLM-Chat-System
-python -m venv venv
-source venv/bin/activate   # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
+---
 
-Run
-python Sketch.py
+## 📊 Lessons Learned from v2 → v3
+
+- **v2 Strengths**  
+  - Compression kept token usage manageable.  
+  - Supervisor rubric enforced professional tone.  
+  - Debug + dashboard gave visibility into refinement quality.
+
+- **v2 Limitations**  
+  - Single generator role → stagnation after ~10 rounds.  
+  - Supervisor feedback repeated without injecting new evidence.  
+  - Long loops plateaued instead of improving.
+
+- **v3 Improvements**  
+  - Multi-role specialization prevents stagnation.  
+  - EvidenceStore ensures persistent, structured source injection.  
+  - Auditor + Specialist roles add rigor and depth.  
+  - Supervisor enforces rubric but now benefits from richer drafts.
+
+---
+
+## 🚀 Next Steps
+
+- Implement `parse_sources()` to convert Collector’s raw text into structured JSON.  
+- Run deep queries (e.g., AI safety controversies, investment strategy).  
+- Benchmark v3 against v2: compare iteration scores, source diversity, and final draft quality.  
+- Extend role library (e.g., Statistician, Legal Analyst) for domain-specific tasks.  
+- Add Markdown export with embedded charts for full deep review.
+
+---
+
+## ✅ Status
+
+Sketch v3 is **in development**.  
+It represents a major architectural pivot from linear loops to multi-role orchestration with persistent evidence storage.  
+This version aims to deliver **professional-quality, self-defining answers** that evolve meaningfully across rounds.
 
 
-
-📌 Roadmap
-- [ ] Add structured parsing of SearXNG results (titles, URLs, snippets).
-- [ ] Integrate Docker MCP tools for deeper data collection.
-- [ ] Implement logging with configurable verbosity.
-- [ ] Build a simple web UI for interactive chat.
-- [ ] Enhance intent classification with fine-tuned prompts.
-
-📜 License
-Private repository – internal use only.
