@@ -1,7 +1,7 @@
 # auto_test.py
 # Run: python auto_test.py
 
-from sketch_v3 import sketch_v3_loop, EvidenceStore, save_markdown
+from sketch_v3 import sketch_v3_loop, EvidenceStore
 
 def run_tests():
     queries = [
@@ -13,19 +13,17 @@ def run_tests():
     for q in queries:
         print(f"\n[TEST QUERY] {q}")
         evidence_store = EvidenceStore()
-        state = {}
-        answer = sketch_v3_loop(q, state, evidence_store, max_rounds=6)
+        answer = sketch_v3_loop(q, evidence_store, max_rounds=3)
 
-        # Save Markdown output
-        filename = save_markdown(answer, q, history=state.get("iteration_history", []))
-        print(f"Saved: {filename}")
+        print("=== FINAL ANSWER (Preview) ===")
+        print(answer)
 
-        # Quick inspection
+        # Inspect sources
         if evidence_store.store:
-            last_query_id = list(evidence_store.store.keys())[-1]
-            sources = evidence_store.get_all_sources(last_query_id)
-            print(f"Sources collected: {len(sources)}")
-            for s in sources[:2]:  # show first 2
+            last_qid = list(evidence_store.store.keys())[-1]
+            sources = evidence_store.get_all_sources(last_qid)
+            print(f"\nSources collected: {len(sources)}")
+            for s in sources[:2]:
                 print(f" - {s['title']} ({s['url']})")
 
 if __name__ == "__main__":
