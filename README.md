@@ -1,4 +1,28 @@
-# Sketch v4 architecture and runnable scaffold
+# Self-Refining LLM Chat System
+
+A prototype chat system that combines **LM Studio**, **SearXNG**, and **Docker MCP tools** to create a self-refining retrieval-augmented generation (RAG) loop.  
+The system uses an LLM both as a **worker** (search + summarize) and as a **supervisor** (review + refine), iterating until the response meets quality standards.
+
+---
+
+## ✨ Features
+- **Intent Analysis**: LLM interprets user requests and generates search keywords.
+- **Search Integration**: Queries SearXNG (`http://localhost:8888`) for fresh results.
+- **Summarization**: LLM condenses retrieved information into clear answers.
+- **Self-Review Loop**: LLM critiques its own output and refines queries until results are sufficient.
+- **Tool Integration**: Docker MCP provides external capabilities (scraping, file access, APIs).
+
+---
+
+## 🏗️ Architecture
+1. **LM Studio** – Local LLM server (`http://localhost:1234`) running `openai/gpt-oss-20b`.
+2. **SearXNG** – Local meta-search engine (`http://localhost:8888`) with JSON API.
+3. **Controller Script** – Python orchestrator that manages the loop.
+4. **Docker MCP Tools** – Extend functionality for specialized tasks.
+
+---
+
+## Sketch v4 architecture and runnable scaffold
 
 This is a complete draft of Sketch v4: a human-like, milestone-driven research system with plan-first orchestration, multi-document collection (agentic RAG), sectional drafting and audits, artifact persistence, and compact logging/token accounting. Drop-in runnable scaffold is included.
 
