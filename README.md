@@ -1,137 +1,44 @@
+Sketch v4 architecture and runnable scaffold
 
-# Self-Refining LLM Chat – Sketch v3
-
-## Overview
-Sketch v3 is the third iteration of the **Self-Refining LLM Chat System**, designed to overcome the stagnation observed in v2’s linear supervisor loop.  
-This version introduces **multi-role orchestration** and a persistent **EvidenceStore** to ensure every round injects fresh sources, domain insights, and rigorous auditing.
+This is a complete draft of Sketch v4: a human-like, milestone-driven research system with plan-first orchestration, multi-document collection (agentic RAG), sectional drafting and audits, artifact persistence, and compact logging/token accounting. Drop-in runnable scaffold is included.
 
 ---
 
-## ✨ Features
+Design overview
 
-- **Multi-Role Pipeline**
-  - **Collector** – gathers and structures search results into evidence packs.
-  - **Editor** – drafts coherent narrative answers with citations.
-  - **Auditor** – checks drafts against evidence, flags contradictions and gaps.
-  - **Specialist** – injects domain-specific insights and examples.
-  - **Supervisor** – scores drafts, enforces rubric, and decides continuation.
-
-- **EvidenceStore**
-  - Persistent storage of search results across rounds.
-  - Structured schema with sources, summaries, contradictions, and gaps.
-  - Accessible to all roles for traceability and auditability.
-
-- **Dynamic Refinement**
-  - Supervisor feedback drives query refinement.
-  - Collector refreshes search with new keywords each round.
-  - Prevents stagnation by continuously injecting new evidence.
-
-- **Audit Trail**
-  - Iteration history logs drafts, audits, reviews, and scores.
-  - Markdown export includes final answer + role contributions.
-
-- **Dashboard Integration**
-  - Charts for score progression, token usage, and role impact.
-  - Legends placed outside chart area for clarity.
+- Plan-first orchestration: Planner and Decomposer produce goals, milestones, and a task graph (sections, dependencies, metrics).
+- Agentic RAG Collector: Multi-document harvesting via web search + deep visit and local file ingestion; saves every document as a JSON artifact in project/evidence. Compression preserves facts.
+- Sectional drafting and audits: Draft per section against evidence. Audit for contradictions and unsupported claims. Specialist enriches. Supervisor scores. Fulfillment checks. Critical Thinker challenges assumptions.
+- Artifacts and reuse: Every stage writes artifacts in a project folder. Roles can reload artifacts anytime—this breaks reliance on parametric model memory.
+- Token/log discipline: Compact per-round summary lines and token counts; per-role usage stored in memory.
 
 ---
 
-## 🧩 Architecture
+Project layout
 
-```
-User Query
-   ↓
-Collector → Evidence Pack → EvidenceStore
-   ↓
-Editor → Draft
-   ↓
-Auditor → Gap Report
-   ↓
-Specialist → Enriched Draft
-   ↓
-Supervisor → Score + Feedback
-   ↓
-Loop Control → Refine Query → Collector refresh
-```
-
+- project_id/
+  - plan.json — planning goals, milestones
+  - tasks.json — task graph: sections, dependencies, metrics
+  - evidence/
+    - doc_x.json — one file per collected document (web/local), with metadata and compressed snippet
+  - sections/
+    - {section_id}/
+      - draft_roundN.md
+      - audit_roundN.md
+      - score_roundN.json
+      - fulfillment_roundN.md
+      - critical_roundN.md
+  - final_report.md
+  - history.json — per-round summaries
+  - manifest.json — artifact index and hashes
 ---
 
-## 📂 EvidenceStore Schema
+Notes and suggested next enhancements
 
-```json
-{
-  "query_id": "uuid",
-  "round": 1,
-  "timestamp": "2025-12-30T15:39:00Z",
-  "sources": [
-    {
-      "source_id": "src_001",
-      "title": "NeurIPS 2025 Program Overview",
-      "snippet": "Startup & Innovation track...",
-      "url": "https://neurips.cc/Conferences/2025",
-      "date": "2025-12-01",
-      "relevance_score": 0.92,
-      "domain": "conference",
-      "collector_notes": "High VC density."
-    }
-  ],
-  "summary": {
-    "bullet_points": [
-      "NeurIPS 2025 includes Startup & Innovation track with VC pitch nights."
-    ],
-    "contradictions": [],
-    "gaps": []
-  }
-}
-```
+- Retriever and indexing: Add a simple keyword/embedding retriever to rank evidence per section query. Store embeddings in evidence JSON.
+- Milestone scheduler: Activate sections based on dependencies, spreading work across rounds.
+- Evidence citation scaffolding: Inline citations with stable keys referencing evidence files; automatic bibliography in final_report.md.
+- Figures support: Define a figure generator role that writes chart specs (e.g., Vega-Lite JSON) saved in project/figures for inclusion.
+- Local corpus ingestion: Extend local ingestion to PDFs with text extraction, and CSVs for chart generation.
 
----
-
-## 🔄 Iteration Loop
-
-1. **Collector** → runs search, stores results in EvidenceStore.  
-2. **Editor** → drafts narrative from latest evidence pack.  
-3. **Auditor** → checks draft against all sources, updates contradictions/gaps.  
-4. **Specialist** → enriches draft with domain insights.  
-5. **Supervisor** → scores draft, provides feedback, decides continuation.  
-6. **Loop Control** → refines query, Collector refreshes search, repeat until score ≥ 4 or max rounds.
-
----
-
-## 📊 Lessons Learned from v2 → v3
-
-- **v2 Strengths**  
-  - Compression kept token usage manageable.  
-  - Supervisor rubric enforced professional tone.  
-  - Debug + dashboard gave visibility into refinement quality.
-
-- **v2 Limitations**  
-  - Single generator role → stagnation after ~10 rounds.  
-  - Supervisor feedback repeated without injecting new evidence.  
-  - Long loops plateaued instead of improving.
-
-- **v3 Improvements**  
-  - Multi-role specialization prevents stagnation.  
-  - EvidenceStore ensures persistent, structured source injection.  
-  - Auditor + Specialist roles add rigor and depth.  
-  - Supervisor enforces rubric but now benefits from richer drafts.
-
----
-
-## 🚀 Next Steps
-
-- Implement `parse_sources()` to convert Collector’s raw text into structured JSON.  
-- Run deep queries (e.g., AI safety controversies, investment strategy).  
-- Benchmark v3 against v2: compare iteration scores, source diversity, and final draft quality.  
-- Extend role library (e.g., Statistician, Legal Analyst) for domain-specific tasks.  
-- Add Markdown export with embedded charts for full deep review.
-
----
-
-## ✅ Status
-
-Sketch v3 is **in development**.  
-It represents a major architectural pivot from linear loops to multi-role orchestration with persistent evidence storage.  
-This version aims to deliver **professional-quality, self-defining answers** that evolve meaningfully across rounds.
-
-
+This v4 draft gives you a real, transparent development cycle: collect many documents, save them, reference them across roles, and loop only as needed—closer to how you work when research actually matters.
