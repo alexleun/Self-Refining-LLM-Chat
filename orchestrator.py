@@ -13,6 +13,12 @@ from roles.fulfillment import FulfillmentChecker
 from roles.critical import CriticalThinker
 from roles.integrator import Integrator
 from utils.llm_interface import LLMInterface
+from tqdm import tqdm
+import logging
+from colorama import Fore, Style, init
+
+# Initialize colorama (needed on Windows)
+init(autoreset=True)
 
 class Orchestrator:
     def __init__(self, language_hint="繁體中文", max_rounds=3, local_evidence_dir=None):
@@ -57,13 +63,18 @@ class Orchestrator:
             {"id": "sec-1", "title": "Overview", "query": user_query, "deliverables": ["report"]}
         ]
 
-        for round_num in range(1, self.max_rounds + 1):
+        # Outer loop: rounds
+        for round_num in tqdm(range(1, self.max_rounds + 1),
+                              desc="Orchestration rounds",
+                              unit="round"):
+
             logging.info(f"=== Round {round_num} start ===")
 
             fresh_sources = self.collector.collect(user_query, deep_visit=True, local_dir=self.local_evidence_dir)
             evidence_paths = save_evidence(project_id, fresh_sources)
             manifest["artifacts"].extend([{"type": "evidence", "path": p} for p in evidence_paths])
 
+            # Dedup evidence pool
             cumulative_sources.extend(fresh_sources)
             dedup, seen = [], set()
             for s in cumulative_sources:
@@ -74,7 +85,11 @@ class Orchestrator:
             cumulative_sources = dedup
 
             section_outputs = []
-            for sec in sections:
+            # Inner loop: sections with progress bar
+            for sec in tqdm(sections,
+                            desc=f"Round {round_num} sections",
+                            unit="section",
+                            leave=False):
                 sec_dir = os.path.join(project_id, "sections", safe_name(sec.get("id", sec.get("title", "sec"))))
                 os.makedirs(sec_dir, exist_ok=True)
 
@@ -111,6 +126,32 @@ class Orchestrator:
             round_tokens = self.tokens.total - prev_total
             avg_overall = sum(o["score"].get("overall", 0.0) for o in section_outputs) / max(1, len(section_outputs))
             total_improvements = sum(len(o["score"].get("improvements", [])) for o in section_outputs)
+            
+            # ✅ Color-coded summary
+            if avg_overall >= 8.0:
+                color = Fore.GREEN
+            elif avg_overall >= 5.0:
+                color = Fore.YELLOW
+            else:
+                color = Fore.RED
+
+            summary_text = (
+                f"Round {round_num} summary: avg_overall={avg_overall:.2f}, "
+                f"improvements={total_improvements}, tokens_used={round_tokens}"
+            )
+
+            # Print with color
+            tqdm.write(color + summary_text + Style.RESET_ALL)
+
+            # Log as usual
+            logging.info(summary_text)
+            logging.info(f"[ROUND {round_num}] tokens_used={round_tokens} total={self.tokens.total}")
+            prev_total = self.tokens.total
+
+
+            # ✅ Update outer progress bar description with metrics
+            tqdm.write(f"Round {round_num} summary: avg_overall={avg_overall:.2f}, improvements={total_improvements}, tokens_used={round_tokens}")
+
             logging.info(f"[ROUND {round_num}] sections={len(section_outputs)} avg_overall={avg_overall:.2f} improvements={total_improvements}")
             logging.info(f"[ROUND {round_num}] tokens_used={round_tokens} total={self.tokens.total}")
             prev_total = self.tokens.total
@@ -125,7 +166,7 @@ class Orchestrator:
 
             if avg_overall >= 8.0 and total_improvements == 0:
                 break
-
+                
         # Final integration
         if iteration_history:
             executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint)
@@ -147,6 +188,45 @@ class Orchestrator:
             print("Final professional report saved at:", report_path)
         else:
             logging.warning("No iteration history; skipping final_report.md and history.json")
+            
+        if iteration_history:
+            final_avg = iteration_history[-1]["avg_overall"]
+            if final_avg >= 8.0:
+                banner_color = Fore.GREEN
+                banner_text = "✅ SUCCESS: High-quality report generated"
+            elif final_avg >= 5.0:
+                banner_color = Fore.YELLOW
+                banner_text = "⚠️ REVIEW: Report acceptable but improvements suggested"
+            else:
+                banner_color = Fore.RED
+                banner_text = "❌ NEEDS IMPROVEMENT: Report quality below threshold"
+
+            print(banner_color + "\n" + "="*60)
+            print(banner_text.center(60))
+            print("="*60 + Style.RESET_ALL)
+            
+            # --- Token Usage Summary Banner ---
+            token_summary = {
+                "total": self.tokens.total,
+                "by_role": self.tokens.role_usage
+            }
+
+            print(Fore.CYAN + "\n" + "="*60)
+            print("📊 TOKEN USAGE SUMMARY".center(60))
+            print("="*60 + Style.RESET_ALL)
+
+            print(f"Total tokens used: {token_summary['total']}")
+            print("Per-role breakdown:")
+            for role, usage in token_summary["by_role"].items():
+                print(f"  {role:<12} prompt={usage['prompt']} completion={usage['completion']} total={usage['total']}")
+            
+        else:
+            print(Fore.RED + "\n" + "="*60)
+            print("❌ NO REPORT GENERATED".center(60))
+            print("="*60 + Style.RESET_ALL)
+            
+         
+
 
         return {
             "project_id": project_id,

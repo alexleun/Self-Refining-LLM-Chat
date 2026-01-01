@@ -1,9 +1,15 @@
 import re, datetime, hashlib
 
-def safe_name(s: str, maxlen: int = 70) -> str:
-    s = s.lower().strip().replace(" ", "_")
-    s = re.sub(r"[^a-z0-9_\-]", "", s)
-    return s[:maxlen] if s else "untitled"
+def safe_name(s) -> str:
+    """
+    Convert any value into a safe string for filenames.
+    Ensures lowercase, strips whitespace, replaces spaces with underscores.
+    """
+    if s is None:
+        return "unnamed"
+    # Convert non-string types to string first
+    s = str(s)
+    return s.lower().strip().replace(" ", "_")
 
 def now_ts() -> str:
     return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

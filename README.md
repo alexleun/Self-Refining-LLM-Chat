@@ -22,47 +22,145 @@ The system uses an LLM both as a **worker** (search + summarize) and as a **supe
 
 ---
 
-## Sketch v4 architecture and runnable scaffold
+# Self-Refining LLM Chat Orchestration
 
-This is a complete draft of Sketch v4: a human-like, milestone-driven research system with plan-first orchestration, multi-document collection (agentic RAG), sectional drafting and audits, artifact persistence, and compact logging/token accounting. Drop-in runnable scaffold is included.
-
----
-
-## Design overview
-
-- Plan-first orchestration: Planner and Decomposer produce goals, milestones, and a task graph (sections, dependencies, metrics).
-- Agentic RAG Collector: Multi-document harvesting via web search + deep visit and local file ingestion; saves every document as a JSON artifact in project/evidence. Compression preserves facts.
-- Sectional drafting and audits: Draft per section against evidence. Audit for contradictions and unsupported claims. Specialist enriches. Supervisor scores. Fulfillment checks. Critical Thinker challenges assumptions.
-- Artifacts and reuse: Every stage writes artifacts in a project folder. Roles can reload artifacts anytime—this breaks reliance on parametric model memory.
-- Token/log discipline: Compact per-round summary lines and token counts; per-role usage stored in memory.
+A modular, multi‑role orchestration framework for large language models (LLMs).  
+This project demonstrates how to coordinate specialized roles (Planner, Decomposer, Collector, Editor, Auditor, Specialist, Supervisor, Fulfillment Checker, Critical Thinker, Integrator) into a reproducible pipeline that produces professional, evidence‑driven reports.
 
 ---
 
-## Project layout
+## ✨ Features
 
-- project_id/
-  - plan.json — planning goals, milestones
-  - tasks.json — task graph: sections, dependencies, metrics
-  - evidence/
-    - doc_x.json — one file per collected document (web/local), with metadata and compressed snippet
-  - sections/
-    - {section_id}/
-      - draft_roundN.md
-      - audit_roundN.md
-      - score_roundN.json
-      - fulfillment_roundN.md
-      - critical_roundN.md
-  - final_report.md
-  - history.json — per-round summaries
-  - manifest.json — artifact index and hashes
+- **Role‑based modular design**  
+  Each role lives in its own Python module (`roles/`), making it easy to extend or swap logic independently.
+
+- **Agentic RAG (Retrieval‑Augmented Generation)**  
+  Evidence collection from web search (via SearXNG), deep fetch, and local file ingestion.  
+  Adaptive semantic compression ensures factual detail is preserved while reducing token usage.
+
+- **Iterative refinement loop**  
+  Multi‑round drafting, auditing, enrichment, scoring, and fulfillment checks until quality thresholds are met.
+
+- **Executive summary & integration**  
+  Automatic generation of board‑ready summaries and integrated Markdown reports, preserving diagrams (Mermaid syntax).
+
+- **Transparency & auditability**  
+  - Iteration history saved (`history.json`)  
+  - Evidence pool persisted (`evidence_pool.json`)  
+  - Token usage tracked per role  
+  - Logs written to both file (`sketch_v4.log`) and console
+
+- **Monitoring & feedback**  
+  - Nested progress bars (`tqdm`) for rounds and sections  
+  - Color‑coded console summaries (green/yellow/red) for quality  
+  - Final outcome banner + token usage summary
+
 ---
 
-## Notes and suggested next enhancements
+## 📂 Project Structure
 
-- Retriever and indexing: Add a simple keyword/embedding retriever to rank evidence per section query. Store embeddings in evidence JSON.
-- Milestone scheduler: Activate sections based on dependencies, spreading work across rounds.
-- Evidence citation scaffolding: Inline citations with stable keys referencing evidence files; automatic bibliography in final_report.md.
-- Figures support: Define a figure generator role that writes chart specs (e.g., Vega-Lite JSON) saved in project/figures for inclusion.
-- Local corpus ingestion: Extend local ingestion to PDFs with text extraction, and CSVs for chart generation.
+```
+sketch_v4/
+│
+├── main.py               # CLI harness
+├── orchestrator.py       # Orchestrator class
+│
+├── roles/                # Role modules
+│   ├── planner.py
+│   ├── decomposer.py
+│   ├── collector.py
+│   ├── editor.py
+│   ├── auditor.py
+│   ├── specialist.py
+│   ├── supervisor.py
+│   ├── fulfillment.py
+│   ├── critical.py
+│   └── integrator.py
+│
+└── utils/                # Utilities
+    ├── config.py
+    ├── helpers.py
+    ├── token_counter.py
+    ├── persistence.py
+    └── logging_utils.py
+```
 
-This v4 draft gives you a real, transparent development cycle: collect many documents, save them, reference them across roles, and loop only as needed—closer to how you work when research actually matters.
+---
+
+## 🚀 Quick Start
+
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/yourusername/self-refining-llm-chat.git
+   cd self-refining-llm-chat
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   Required packages: `requests`, `tqdm`, `colorama`, `dataclasses` (Python 3.7+ includes it).
+
+3. **Run the CLI harness**
+   ```bash
+   python main.py
+   ```
+
+4. **Monitor progress**
+   - Console: progress bars + color‑coded summaries  
+   - Log file: `sketch_v4.log`  
+
+5. **Check outputs**
+   - `final_report.md` → integrated professional report  
+   - `executive_summary.md` → board‑ready summary  
+   - `history.json` → iteration history  
+   - `evidence_pool.json` → collected evidence  
+   - `manifest.json` → artifact manifest  
+
+---
+
+## 🛠 Configuration
+
+Edit `utils/config.py` to adjust:
+- `LM_STUDIO_URL` → local LM Studio endpoint  
+- `SEARX_URL` → SearXNG search endpoint  
+- `LLM_CFG` → max tokens, timeout  
+- `ROLE_TEMPS` → per‑role temperature settings  
+
+---
+
+## 📊 Example Output
+
+Console:
+
+```
+Orchestration rounds:  33%|█████████▎                | 1/3 [00:15<00:30, 15.0s/round]
+Round 1 sections:     100%|█████████████████████████| 3/3 [00:12<00:00,  4.00s/section]
+Round 1 summary: avg_overall=7.25, improvements=2, tokens_used=450   ← (yellow text)
+
+============================================================
+⚠️ REVIEW: Report acceptable but improvements suggested
+============================================================
+
+============================================================
+📊 TOKEN USAGE SUMMARY
+============================================================
+Total tokens used: 1450
+Per-role breakdown:
+  planner      prompt=120 completion=300 total=420
+  editor       prompt=200 completion=400 total=600
+  supervisor   prompt=80  completion=10  total=90
+```
+
+---
+
+## 🤝 Contributing
+
+This project is open to requests and contributions.  
+Ideas welcome for:
+- New specialized roles (e.g. Scenario Mapper, Diagram Generator)  
+- Improved scoring rubrics  
+- Alternative evidence sources  
+- Visualization integration  
+
+Fork, open issues, or submit PRs — let’s refine this orchestration together.
