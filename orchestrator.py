@@ -16,6 +16,7 @@ from utils.llm_interface import LLMInterface
 from tqdm import tqdm
 import logging
 from colorama import Fore, Style, init
+from utils.helpers import slugify_query
 
 # Initialize colorama (needed on Windows)
 init(autoreset=True)
@@ -41,7 +42,10 @@ class Orchestrator:
         self.integrator = Integrator(self.llm, self.tokens)
 
     def run(self, user_query: str):
-        project_id = safe_name(user_query) + "_" + now_ts()
+        # project_id = safe_name(user_query) + "_" + now_ts()
+        slug = slugify_query(user_query, max_words=5, max_len=50)
+        project_id = f"{slug}_{now_ts()}"
+
         os.makedirs(project_id, exist_ok=True)
         os.makedirs(os.path.join(project_id, "evidence"), exist_ok=True)
         os.makedirs(os.path.join(project_id, "sections"), exist_ok=True)
