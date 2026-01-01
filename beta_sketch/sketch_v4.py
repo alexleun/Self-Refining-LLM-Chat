@@ -43,7 +43,7 @@ ROLE_TEMPS = {
 }
 
 class LLMConfig:
-    def __init__(self, max_tokens: int = 2000, timeout: int = 60):
+    def __init__(self, max_tokens: int = 2000, timeout: int = 600):
         self.max_tokens = max_tokens
         self.timeout = timeout
 
@@ -98,7 +98,7 @@ def searx_search(query: str, limit: int = 8) -> List[Dict[str, Any]]:
 
 def fetch_deep(url: str, max_chars: int = 4000) -> str:
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=60)
         return r.text[:max_chars]
     except Exception as e:
         logging.warning(f"Deep fetch failed: {url} :: {e}")
@@ -270,39 +270,45 @@ def sketch_v4_run(user_query: str, language_hint: str = "繁體中文", max_roun
     plan = planner(user_query, tokens)
     tasks = decomposer(plan, tokens)
 
-    with open(os.path.join(project_id, "plan.json"), "w", encoding="utf-8") as f: json.dump(plan, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(project_id, "tasks.json"), "w", encoding="utf-8") as f: json.dump(tasks, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(project_id, "plan.json"), "w", encoding="utf-8") as f:
+        json.dump(plan, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(project_id, "tasks.json"), "w", encoding="utf-8") as f:
+        json.dump(tasks, f, ensure_ascii=False, indent=2)
 
     iteration_history = []
     cumulative_sources: List[Dict[str, Any]] = []
     manifest = {"project_id": project_id, "artifacts": []}
 
     prev_total = 0
-    sections = tasks.get("sections", []) or [{"id":"sec-1","title":"Overview","query":user_query,"deliverables":["report"]}]
+    sections = tasks.get("sections", []) or [
+        {"id": "sec-1", "title": "Overview", "query": user_query, "deliverables": ["report"]}
+    ]
 
-    for round_num in range(1, max_rounds+1):
+    for round_num in range(1, max_rounds + 1):
         logging.info(f"=== Round {round_num} start ===")
 
         # Collect evidence (web + local) and persist
         fresh_sources = collector(user_query, tokens, deep_visit=True, local_dir=local_evidence_dir)
         evidence_paths = save_evidence(project_id, fresh_sources)
-        manifest["artifacts"].extend([{"type":"evidence","path":p} for p in evidence_paths])
+        manifest["artifacts"].extend([{"type": "evidence", "path": p} for p in evidence_paths])
 
         # Pool evidence (deduplicate by URL/hash)
         cumulative_sources.extend(fresh_sources)
-        dedup = []; seen = set()
+        dedup = []
+        seen = set()
         for s in cumulative_sources:
-            key = (s.get("url","").strip().lower(), s.get("hash",""))
+            key = (s.get("url", "").strip().lower(), s.get("hash", ""))
             if key not in seen:
-                seen.add(key); dedup.append(s)
+                seen.add(key)
+                dedup.append(s)
         cumulative_sources = dedup
 
         section_outputs = []
         for sec in sections:
-            sec_dir = os.path.join(project_id, "sections", safe_name(sec.get("id", sec.get("title","sec"))))
+            sec_dir = os.path.join(project_id, "sections", safe_name(sec.get("id", sec.get("title", "sec"))))
             os.makedirs(sec_dir, exist_ok=True)
 
-            ev = fresh_sources  # current round evidence; could mix with cumulative if desired
+            ev = fresh_sources
             draft = editor_section(sec, ev, language_hint, tokens)
             audit = auditor_section(draft, ev, tokens)
             enriched = specialist_enrich(draft, audit, tokens)
@@ -310,13 +316,25 @@ def sketch_v4_run(user_query: str, language_hint: str = "繁體中文", max_roun
             fulfill = fulfillment_check(user_query, enriched, tokens)
             critical = critical_questions(enriched, tokens)
 
-            with open(os.path.join(sec_dir, f"draft_round{round_num}.md"), "w", encoding="utf-8") as f: f.write(enriched)
-            with open(os.path.join(sec_dir, f"audit_round{round_num}.md"), "w", encoding="utf-8") as f: f.write(audit)
-            with open(os.path.join(sec_dir, f"score_round{round_num}.json"), "w", encoding="utf-8") as f: json.dump(score, f, ensure_ascii=False, indent=2)
-            with open(os.path.join(sec_dir, f"fulfillment_round{round_num}.md"), "w", encoding="utf-8") as f: f.write(fulfill)
-            with open(os.path.join(sec_dir, f"critical_round{round_num}.md"), "w", encoding="utf-8") as f: f.write(critical)
+            with open(os.path.join(sec_dir, f"draft_round{round_num}.md"), "w", encoding="utf-8") as f:
+                f.write(enriched)
+            with open(os.path.join(sec_dir, f"audit_round{round_num}.md"), "w", encoding="utf-8") as f:
+                f.write(audit)
+            with open(os.path.join(sec_dir, f"score_round{round_num}.json"), "w", encoding="utf-8") as f:
+                json.dump(score, f, ensure_ascii=False, indent=2)
+            with open(os.path.join(sec_dir, f"fulfillment_round{round_num}.md"), "w", encoding="utf-8") as f:
+                f.write(fulfill)
+            with open(os.path.join(sec_dir, f"critical_round{round_num}.md"), "w", encoding="utf-8") as f:
+                f.write(critical)
 
-            section_outputs.append({"section": sec, "draft": enriched, "audit": audit, "score": score, "fulfillment": fulfill, "critical": critical})
+            section_outputs.append({
+                "section": sec,
+                "draft": enriched,
+                "audit": audit,
+                "score": score,
+                "fulfillment": fulfill,
+                "critical": critical
+            })
 
         # Round summary logs
         round_tokens = tokens.total - prev_total
@@ -334,23 +352,52 @@ def sketch_v4_run(user_query: str, language_hint: str = "繁體中文", max_roun
             "sections": section_outputs
         })
 
-        # Simple stop condition
+        # Stop condition
         if avg_overall >= 8.0 and total_improvements == 0:
             break
 
-    # Integrate sections into final report
-    final_md = ["# 最終報告",""]
-    for o in iteration_history[-1]["sections"]:
-        title = o["section"].get("title", "Section")
-        final_md.append(f"## {title}\n")
-        final_md.append(o["draft"])
-        final_md.append("")
+    # --- Final Integration ---
+    if iteration_history:
+        # Executive summary inline prompt
+        exec_prompt = (
+            f"你是執行摘要撰寫者。請以{language_hint}撰寫 3–4 段執行摘要，"
+            "簡潔、專業，適合董事會報告。\n\n"
+            "以下是各章節草稿：\n" +
+            json.dumps([o["draft"] for o in iteration_history[-1]["sections"]],
+                       ensure_ascii=False, indent=2)
+        )
+        executive_summary = query_llm(exec_prompt, role="executive", tokens=tokens)
 
-    final_text = "\n".join(final_md)
-    with open(os.path.join(project_id, "final_report.md"), "w", encoding="utf-8") as f: f.write(final_text)
-    with open(os.path.join(project_id, "history.json"), "w", encoding="utf-8") as f: json.dump(iteration_history, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(project_id, "evidence_pool.json"), "w", encoding="utf-8") as f: json.dump(cumulative_sources, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(project_id, "manifest.json"), "w", encoding="utf-8") as f: json.dump(manifest, f, ensure_ascii=False, indent=2)
+        # Integrator inline prompt
+        integrator_prompt = (
+        f"You are the integrator. Please integrate all chapter drafts, executive summaries, and contextual analyses into a complete Markdown professional report."
+        f"Must be written using {language_hint} and follow this structure:\n\n"
+        "# Executive Summary\n...\n# Table of Contents\n...\n# Overview\n...\n# Chapter Analysis\n...\n# Insights and Contexts\n...\n"
+        "# Visualizations\n...\n# References\n...\n# Appendix\n...\n\n"
+        "Tone: Formal, professional, suitable for a board report.\n\n"
+        "If any chapters or reviews contain diagrams with Mermaid syntax, please retain the original Mermaid code blocks,"
+        "For rendering in a browser or Markdown viewer, do not convert to ASCII.\n\n"
+        f"Executive Summary:\n{executive_summary}\n\n"
+        "Chapter Drafts:\n" + json.dumps([o["draft"] for o in iteration_history[-1]["sections"]], ensure_ascii=False, indent=2) + "\n\n"
+        "Situational analysis:\n" + json.dumps([o["critical"] for o in iteration_history[-1]["sections"]], ensure_ascii=False, indent=2))
+        final_report = query_llm(integrator_prompt, role="integrator", tokens=tokens)
+
+        report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(final_report)
+
+        with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
+            f.write(executive_summary)
+        with open(os.path.join(project_id, "history.json"), "w", encoding="utf-8") as f:
+            json.dump(iteration_history, f, ensure_ascii=False, indent=2)
+        with open(os.path.join(project_id, "evidence_pool.json"), "w", encoding="utf-8") as f:
+            json.dump(cumulative_sources, f, ensure_ascii=False, indent=2)
+        with open(os.path.join(project_id, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+        print("Final professional report saved at:", report_path)
+    else:
+        logging.warning("No iteration history; skipping final_report.md and history.json")
 
     return {
         "project_id": project_id,
@@ -364,7 +411,9 @@ def sketch_v4_run(user_query: str, language_hint: str = "繁體中文", max_roun
 # ---------------------------
 
 if __name__ == "__main__":
-    query = "深度研究：請用繁體中文撰寫報告，並生成圖表或圖片輔助理解。主題來源：https://www.jdsupra.com/legalnews/governing-the-ungovernable-corporate-1075132/"
+    query = "Construct a multidisciplinary argument evaluating whether superintelligence should be developed, focusing on macro-scale impacts on human cognition, diplomacy, and global market dynamics."
+    # "深度研究：請用繁體中文撰寫報告，並生成圖表或圖片輔助理解。主題來源：https://www.jdsupra.com/legalnews/governing-the-ungovernable-corporate-1075132/"
+    
     result = sketch_v4_run(query, language_hint="繁體中文", max_rounds=3, local_evidence_dir=None)
     print("Project:", result["project_id"])
     print("Final report:", result["final_report_path"])
