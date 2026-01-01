@@ -1,10 +1,10 @@
-Sketch v4 architecture and runnable scaffold
+# Sketch v4 architecture and runnable scaffold
 
 This is a complete draft of Sketch v4: a human-like, milestone-driven research system with plan-first orchestration, multi-document collection (agentic RAG), sectional drafting and audits, artifact persistence, and compact logging/token accounting. Drop-in runnable scaffold is included.
 
 ---
 
-Design overview
+## Design overview
 
 - Plan-first orchestration: Planner and Decomposer produce goals, milestones, and a task graph (sections, dependencies, metrics).
 - Agentic RAG Collector: Multi-document harvesting via web search + deep visit and local file ingestion; saves every document as a JSON artifact in project/evidence. Compression preserves facts.
@@ -14,7 +14,7 @@ Design overview
 
 ---
 
-Project layout
+## Project layout
 
 - project_id/
   - plan.json — planning goals, milestones
@@ -33,7 +33,7 @@ Project layout
   - manifest.json — artifact index and hashes
 ---
 
-Notes and suggested next enhancements
+## Notes and suggested next enhancements
 
 - Retriever and indexing: Add a simple keyword/embedding retriever to rank evidence per section query. Store embeddings in evidence JSON.
 - Milestone scheduler: Activate sections based on dependencies, spreading work across rounds.
