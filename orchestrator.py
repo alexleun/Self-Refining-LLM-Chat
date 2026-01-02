@@ -16,23 +16,42 @@ from utils.llm_interface import LLMInterface
 from tqdm import tqdm
 import logging
 from colorama import Fore, Style, init
-from utils.helpers import slugify_query
 
 # Initialize colorama (needed on Windows)
 init(autoreset=True)
+
+from utils.search_engine import SearxSearch
+from utils.helpers import slugify_query, now_ts
+
+from utils.token_counter import TokenCounter
 
 class Orchestrator:
     def __init__(self, language_hint="繁體中文", max_rounds=3, local_evidence_dir=None):
         self.language_hint = language_hint
         self.max_rounds = max_rounds
         self.local_evidence_dir = local_evidence_dir
+
+        # ✅ initialize token counter + llm
         self.tokens = TokenCounter()
         self.llm = LLMInterface(self.tokens)
+
+        # other roles
+        self.planner = Planner(self.llm, self.tokens)
+        self.decomposer = Decomposer(self.llm, self.tokens)
+
+        # ✅ initialize search engine
+        self.search_engine = SearxSearch(base_url="http://localhost:8888")
+
+        # ✅ generate project_id
+        self.project_id = f"{slugify_query(language_hint)}_{now_ts()}"
+
+        # ✅ pass llm into collector
+        self.collector = Collector(self.search_engine, self.project_id, self.llm)
 
         # Initialize roles
         self.planner = Planner(self.llm, self.tokens)
         self.decomposer = Decomposer(self.llm, self.tokens)
-        self.collector = Collector(self.tokens, self.llm)
+        # self.collector = Collector(self.tokens, self.llm)
         self.editor = Editor(self.llm, self.tokens)
         self.auditor = Auditor(self.llm, self.tokens)
         self.specialist = Specialist(self.llm, self.tokens)
@@ -41,10 +60,14 @@ class Orchestrator:
         self.critical = CriticalThinker(self.llm, self.tokens)
         self.integrator = Integrator(self.llm, self.tokens)
 
-    def run(self, user_query: str):
-        # project_id = safe_name(user_query) + "_" + now_ts()
+    def run(self, user_query: str, max_tokens=None):
+        # store override
+        self.max_tokens = max_tokens or LLM_CFG.max_tokens
+
+        plan = self.planner.plan(user_query, max_tokens=self.max_tokens)
+        sources = self.collector.collect(user_query, max_tokens=self.max_tokens)
         slug = slugify_query(user_query, max_words=5, max_len=50)
-        project_id = f"{slug}_{now_ts()}"
+        project_id = f"__{slug}_{now_ts()}"
 
         os.makedirs(project_id, exist_ok=True)
         os.makedirs(os.path.join(project_id, "evidence"), exist_ok=True)
@@ -229,7 +252,7 @@ class Orchestrator:
             print("❌ NO REPORT GENERATED".center(60))
             print("="*60 + Style.RESET_ALL)
             
-         
+        logging.info(f"[Orchestrator] Round {i} consumed {round_tokens} tokens, total={self.tokens.total}")
 
 
         return {

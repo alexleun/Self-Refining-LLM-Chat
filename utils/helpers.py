@@ -37,5 +37,14 @@ def slugify_query(query: str, max_words: int = 5, max_len: int = 50) -> str:
 def now_ts() -> str:
     return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+
+
 def file_hash(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    """
+    Generate a short SHA1 hash for a given text.
+    Useful for deduplication and evidence tracking.
+    """
+    if not text:
+        return "empty"
+    h = hashlib.sha1(text.encode("utf-8")).hexdigest()
+    return h[:12]  # shorten for readability

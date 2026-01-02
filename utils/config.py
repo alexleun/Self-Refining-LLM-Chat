@@ -1,7 +1,7 @@
 # utils/config.py
 
 class LLMConfig:
-    def __init__(self, max_tokens: int = 2000, timeout: int = 600):
+    def __init__(self, max_tokens: int = 131072, timeout: int = 1200):
         self.max_tokens = max_tokens
         self.timeout = timeout
 

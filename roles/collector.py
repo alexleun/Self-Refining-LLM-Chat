@@ -3,18 +3,27 @@ from utils.helpers import safe_name, file_hash
 from roles.llm_interface import LLMInterface
 from utils.pdf_handler import fetch_and_split_pdf
 from utils.helpers import sanitize_filename
-from utils.persistence import file_hash
+from utils.helpers import file_hash
 
 
 class Collector:
-    def __init__(self, tokens, llm: LLMInterface, search_engine, project_id):
-        self.tokens = tokens
-        self.llm = llm
+    def __init__(self, search_engine, project_id, llm):
         self.search_engine = search_engine
         self.project_id = project_id
+        self.llm = llm
 
+    def compress_semantic(self, snippet: str, max_words: int, max_tokens=None) -> str:
+        words = snippet.split()
+        if len(words) <= max_words:
+            return snippet
+        prompt = (
+            f"Rewrite the following text into ≤{max_words} words while preserving ALL factual details, "
+            "actors, dates, and metrics. Do not omit key information.\n\n"
+            f"{snippet}"
+        )
+        return self.llm.query(prompt, role="collector", max_tokens=max_tokens).strip()
 
-    def searx_search(self, query: str, limit: int = 8):
+    def searx_search(self, query: str, limit: int = 15):
         params = {"q": query, "format": "json", "categories": "general", "language": "en"}
         try:
             resp = requests.get("http://localhost:8888/search", params=params, timeout=15)
@@ -64,59 +73,36 @@ class Collector:
                     except Exception as e:
                         logging.warning(f"Failed to ingest local file: {path} :: {e}")
         return docs
-
-    def compress_semantic(self, snippet: str, max_words: int) -> str:
-        words = snippet.split()
-        if len(words) <= max_words:
-            return snippet
-        prompt = (
-            f"Rewrite the following text into ≤{max_words} words while preserving ALL factual details, "
-            "actors, dates, and metrics. Do not omit key information.\n\n"
-            f"{snippet}"
-        )
-        return self.llm.query(prompt, role="collector").strip()
-
-    # def collect(self, user_query: str, deep_visit=True, local_dir=None):
-        # results = self.searx_search(user_query, limit=8)
-        # for r in results:
-            # if deep_visit and r["url"]:
-                # text = self.fetch_deep(r["url"])
-                # if text:
-                    # r["snippet"] = text[:1200]
-        # if local_dir and os.path.isdir(local_dir):
-            # results.extend(self.ingest_local_files(local_dir))
-        # out = []
-        # for r in results:
-            # max_words = 200 if len(r["snippet"].split()) > 400 else 120
-            # r["compressed"] = self.compress_semantic(r["snippet"], max_words=max_words)
-            # r["hash"] = file_hash(r["compressed"])
-            # out.append(r)
-        # return out
         
-    def collect(self, user_query: str, deep_visit=True, local_dir=None):
-        results = self.search_engine.search(user_query, limit=8)
+    def collect(self, user_query: str, deep_visit=True, local_dir=None, max_tokens=None):
+            # Step 1: run searx search
+            results = self.search_engine.search(user_query, limit=8)
 
-        enriched = []
-        for r in results:
-            url = r.get("url", "")
-            if url.lower().endswith(".pdf"):
-                # PDF handling
-                pdf_chunks = fetch_and_split_pdf(url, self.project_id)
-                enriched.extend(pdf_chunks)
-            else:
-                # Normal HTML handling
-                if deep_visit and url:
-                    text = self.fetch_deep(url)
-                    if text:
-                        r["snippet"] = text[:1200]
-                # compress + hash
-                max_words = 200 if len(r.get("snippet", "").split()) > 400 else 120
-                r["compressed"] = self.compress_semantic(r.get("snippet", ""), max_words=max_words)
-                r["hash"] = file_hash(r["compressed"])
-                enriched.append(r)
+            enriched = []
+            for r in results:
+                url = r.get("url", "")
+                if url and url.lower().endswith(".pdf"):
+                    # PDF handling → split into chunks
+                    pdf_chunks = fetch_and_split_pdf(url, self.project_id)
+                    enriched.extend(pdf_chunks)
+                else:
+                    # Normal HTML handling
+                    if deep_visit and url:
+                        text = self.search_engine.fetch_deep(url)
+                        if text:
+                            r["snippet"] = text[:1200]
 
-        # Local file ingestion
-        if local_dir and os.path.isdir(local_dir):
-            enriched.extend(self.ingest_local_files(local_dir))
+                    # compress + hash
+                    snippet = r.get("snippet", "")
+                    max_words = 200 if len(snippet.split()) > 400 else 120
+                    r["compressed"] = self.compress_semantic(snippet, max_words=max_words, max_tokens=max_tokens)
+                    r["hash"] = file_hash(r["compressed"])
+                    r["source_type"] = "html"
+                    enriched.append(r)
 
-        return enriched
+            # Step 2: local evidence ingestion
+            if local_dir and os.path.isdir(local_dir):
+                enriched.extend(self.ingest_local_files(local_dir))
+
+            return enriched
+

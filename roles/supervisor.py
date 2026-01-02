@@ -2,7 +2,7 @@ import json
 from utils.llm_interface import LLMInterface
 
 class Supervisor:
-    def __init__(self, llm: LLMInterface, tokens):
+    def __init__(self, llm: LLMInterface, tokens, max_tokens=None):
         self.llm = llm
         self.tokens = tokens
 
@@ -13,7 +13,7 @@ class Supervisor:
             "\"overall\":0.0, \"strengths\":[], \"weaknesses\":[], \"improvements\":[], \"final_answer\":\"\" }.\n\n"
             "Draft:\n" + draft
         )
-        raw = self.llm.query(prompt, role="supervisor")
+        raw = self.llm.query(prompt, role="supervisor", max_tokens=max_tokens)
         try:
             return json.loads(raw)
         except Exception:

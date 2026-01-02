@@ -1,16 +1,31 @@
 import requests, json, time, logging
+from utils.token_counter import TokenCounter
 from utils.config import LLM_CFG, LM_STUDIO_URL, ROLE_TEMPS
 
 class LLMInterface:
     def __init__(self, tokens):
         self.tokens = tokens
+        self.model_max = 131072  # ceiling
 
-    def query(self, prompt: str, role: str, retries: int = 2, backoff: float = 0.75) -> str:
+    def query(self, prompt: str, role: str, max_tokens=None, retries=2, backoff=0.75):
+        requested_max = max_tokens or LLM_CFG.max_tokens
+        effective_max = min(requested_max, self.model_max)
+
+        reserve_for_completion = int(effective_max * 0.1)
+        max_prompt = effective_max - reserve_for_completion
+
+        n_tokens = self.tokens.count(prompt)
+        if n_tokens > max_prompt:
+            # logging.warning(f"[LLMInterface] role={role} prompt too long ({n_tokens} > {max_prompt}), truncating.")
+            words = prompt.split()
+            prompt = " ".join(words[:max_prompt])
+
         payload = {
             "messages": [{"role": "user", "content": prompt}],
             "temperature": ROLE_TEMPS.get(role, 0.7),
-            "max_tokens": LLM_CFG.max_tokens,
+            "max_tokens": reserve_for_completion,
         }
+
         for attempt in range(retries+1):
             try:
                 r = requests.post(LM_STUDIO_URL, json=payload, timeout=LLM_CFG.timeout)
