@@ -18,7 +18,7 @@ class Collector:
             return snippet
         prompt = (
             f"{ROLE_PROMPTS['planner']}\n"
-            f"rewrite text <={max_words.}\n"
+            f"rewrite text <={max_words}\n"
             f"{snippet}"
         )
         return self.llm.query(prompt, role="collector", max_tokens=max_tokens).strip()
