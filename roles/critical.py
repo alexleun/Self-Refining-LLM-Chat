@@ -5,9 +5,9 @@ class CriticalThinker:
         self.llm = llm
         self.tokens = tokens
 
-    def questions(self, draft: str) -> str:
+    def questions(self, draft: str, max_tokens=None) -> str:
         prompt = (
             "You are the Critical Thinker.\nGenerate 2–3 probing questions that challenge assumptions and broaden angles.\n"
             "Return questions only.\n\nDraft:\n" + draft
         )
-        return self.llm.query(prompt, role="critical")
+        return self.llm.query(prompt, role="critical", max_tokens=None)

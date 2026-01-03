@@ -6,7 +6,7 @@ class Integrator:
         self.llm = llm
         self.tokens = tokens
 
-    def write_summary(self, sections: list, language_hint: str) -> str:
+    def write_summary(self, sections: list, language_hint: str, max_tokens=None) -> str:
         drafts = [s["draft"] for s in sections]
         prompt = (
             f"你是執行摘要撰寫者。請以{language_hint}撰寫 3–4 段執行摘要，"
@@ -14,9 +14,9 @@ class Integrator:
             "以下是各章節草稿：\n" +
             json.dumps(drafts, ensure_ascii=False, indent=2)
         )
-        return self.llm.query(prompt, role="executive")
+        return self.llm.query(prompt, role="executive", max_tokens=max_tokens)
 
-    def integrate(self, sections: list, executive_summary: str, language_hint: str) -> str:
+    def integrate(self, sections: list, executive_summary: str, language_hint: str, max_tokens=None) -> str:
         drafts = [s["draft"] for s in sections]
         criticals = [s["critical"] for s in sections]
 
@@ -32,4 +32,4 @@ class Integrator:
             "Chapter Drafts:\n" + json.dumps(drafts, ensure_ascii=False, indent=2) + "\n\n"
             "Situational analysis:\n" + json.dumps(criticals, ensure_ascii=False, indent=2)
         )
-        return self.llm.query(prompt, role="integrator")
+        return self.llm.query(prompt, role="integrator", max_tokens=max_tokens)

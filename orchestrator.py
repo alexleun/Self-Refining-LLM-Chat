@@ -121,12 +121,12 @@ class Orchestrator:
                 os.makedirs(sec_dir, exist_ok=True)
 
                 ev = fresh_sources
-                draft = self.editor.draft_section(sec, ev, self.language_hint)
-                audit = self.auditor.audit_section(draft, ev)
-                enriched = self.specialist.enrich(draft, audit)
-                score = self.supervisor.score(enriched)
-                fulfill = self.fulfillment.check(user_query, enriched)
-                critical = self.critical.questions(enriched)
+                draft = self.editor.draft_section(sec, ev, self.language_hint , max_tokens=self.max_tokens)
+                audit = self.auditor.audit_section(draft, ev, max_tokens=self.max_tokens)
+                enriched = self.specialist.enrich(draft, audit,  max_tokens=self.max_tokens)
+                score = self.supervisor.score(enriched,  max_tokens=self.max_tokens)
+                fulfill = self.fulfillment.check(user_query, enriched,  max_tokens=self.max_tokens)
+                critical = self.critical.questions(enriched, max_tokens=self.max_tokens)
 
                 # Save artifacts
                 with open(os.path.join(sec_dir, f"draft_round{round_num}.md"), "w", encoding="utf-8") as f:
@@ -196,8 +196,8 @@ class Orchestrator:
                 
         # Final integration
         if iteration_history:
-            executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint)
-            final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint)
+            executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
+            final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
 
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:

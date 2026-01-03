@@ -4,7 +4,7 @@ from roles.llm_interface import LLMInterface
 from utils.pdf_handler import fetch_and_split_pdf
 from utils.helpers import sanitize_filename
 from utils.helpers import file_hash
-
+from utils.config import ROLE_PROMPTS
 
 class Collector:
     def __init__(self, search_engine, project_id, llm):
@@ -17,8 +17,8 @@ class Collector:
         if len(words) <= max_words:
             return snippet
         prompt = (
-            f"Rewrite the following text into ≤{max_words} words while preserving ALL factual details, "
-            "actors, dates, and metrics. Do not omit key information.\n\n"
+            f"{ROLE_PROMPTS['planner']}\n"
+            f"rewrite text <={max_words.}\n"
             f"{snippet}"
         )
         return self.llm.query(prompt, role="collector", max_tokens=max_tokens).strip()

@@ -1,5 +1,6 @@
 import json
 from utils.llm_interface import LLMInterface
+from utils.config import ROLE_PROMPTS
 
 class Planner:
     def __init__(self, llm: LLMInterface, tokens):
@@ -8,9 +9,7 @@ class Planner:
 
     def plan(self, user_query: str, max_tokens=None) -> dict:
         prompt = (
-            "You are the Planner. Create a concise JSON plan with:\n"
-            "- goals: [..]\n- milestones: [{id, name, deliverables, target_date}],\n"
-            "- risks: [..]\n- success_criteria: [..]\n\nQuery:\n" + user_query + "\nReturn STRICT JSON."
+            ROLE_PROMPTS['planner'] + user_query + "\nReturn STRICT JSON."
         )
         raw = self.llm.query(prompt, role="planner", max_tokens=max_tokens)
         try:
