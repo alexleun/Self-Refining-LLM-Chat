@@ -43,3 +43,20 @@ class TokenCounter:
                 elif "prompt_tokens" in u or "completion_tokens" in u:
                     total += u.get("prompt_tokens", 0) + u.get("completion_tokens", 0)
         return total
+
+    def role_usage(self, role: str) -> dict:
+        """Return aggregated token usage for a given role."""
+        prompt = completion = total = 0
+        for u in self.usage_log.get(role, []):
+            prompt += u.get("prompt_tokens", 0)
+            completion += u.get("completion_tokens", 0)
+            total += u.get("total_tokens", u.get("prompt_tokens", 0) + u.get("completion_tokens", 0))
+        return {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "total_tokens": total,
+        }
+        
+    def all_usage(self) -> dict:
+        """Return aggregated usage for all roles."""
+        return {role: self.role_usage(role) for role in self.usage_log.keys()}

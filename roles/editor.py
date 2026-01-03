@@ -1,5 +1,6 @@
 import json
 from utils.llm_interface import LLMInterface
+from utils.config import ROLE_PROMPTS
 
 class Editor:
     def __init__(self, llm: LLMInterface, tokens):
@@ -8,9 +9,8 @@ class Editor:
 
     def draft_section(self, section: dict, evidence: list, language_hint: str, max_tokens=None) -> str:
         prompt = (
-            "You are the Drafting Editor.\n"
+            ROLE_PROMPTS['editor']+
             f"Write in {language_hint}.\n"
-            "Produce a Markdown section with heading, short paragraphs, bullets, and cite sources inline by Title or URL.\n\n"
-            "Section:\n" + json.dumps(section, ensure_ascii=False) + "\n\nEvidence:\n" + json.dumps(evidence, ensure_ascii=False)
+            "Section:\n"+ json.dumps(section, ensure_ascii=False) + "\n\nEvidence:\n" + json.dumps(evidence, ensure_ascii=False)
         )
         return self.llm.query(prompt, role="editor", max_tokens=max_tokens)

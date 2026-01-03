@@ -1,5 +1,6 @@
-import os, json, logging
-from utils.helpers import safe_name, now_ts
+import os
+import json
+from utils.helpers import safe_name, now_ts, slugify_query
 from utils.token_counter import TokenCounter
 from utils.persistence import save_evidence
 from roles.planner import Planner
@@ -16,14 +17,13 @@ from utils.llm_interface import LLMInterface
 from tqdm import tqdm
 import logging
 from colorama import Fore, Style, init
+from utils.config import LLM_CFG
+from utils.search_engine import SearxSearch
 
 # Initialize colorama (needed on Windows)
 init(autoreset=True)
 
-from utils.search_engine import SearxSearch
-from utils.helpers import slugify_query, now_ts
 
-from utils.token_counter import TokenCounter
 
 class Orchestrator:
     def __init__(self, language_hint="繁體中文", max_rounds=3, local_evidence_dir=None):
@@ -110,7 +110,8 @@ class Orchestrator:
                     seen.add(key)
                     dedup.append(s)
             cumulative_sources = dedup
-
+            logging.info(f"[Orchestrator] Sections received: {sections}")
+            logging.info(f"[Orchestrator] Number of sections: {len(sections)}")
             section_outputs = []
             # Inner loop: sections with progress bar
             for sec in tqdm(sections,
@@ -233,9 +234,14 @@ class Orchestrator:
             print("="*60 + Style.RESET_ALL)
             
             # --- Token Usage Summary Banner ---
+            
+            # token_summary = {
+                # "total": self.tokens.total,
+                # "by_role": self.tokens.role_usage
+            # }
             token_summary = {
                 "total": self.tokens.total,
-                "by_role": self.tokens.role_usage
+                "by_role": self.tokens.all_usage()
             }
 
             print(Fore.CYAN + "\n" + "="*60)
@@ -252,7 +258,7 @@ class Orchestrator:
             print("❌ NO REPORT GENERATED".center(60))
             print("="*60 + Style.RESET_ALL)
             
-        logging.info(f"[Orchestrator] Round {i} consumed {round_tokens} tokens, total={self.tokens.total}")
+        logging.info(f"[Orchestrator] Round {round_num} consumed {round_tokens} tokens, total={self.tokens.total}")
 
 
         return {

@@ -1,5 +1,6 @@
 from utils.llm_interface import LLMInterface
 from utils.config import ROLE_PROMPTS
+
 class Specialist:
     def __init__(self, llm: LLMInterface, tokens):
         self.llm = llm

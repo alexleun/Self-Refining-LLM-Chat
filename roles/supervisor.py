@@ -1,5 +1,6 @@
 import json
 from utils.llm_interface import LLMInterface
+from utils.config import ROLE_PROMPTS
 
 class Supervisor:
     def __init__(self, llm: LLMInterface, tokens, max_tokens=None):

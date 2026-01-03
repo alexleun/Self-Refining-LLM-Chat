@@ -1,4 +1,5 @@
 from utils.llm_interface import LLMInterface
+from utils.config import ROLE_PROMPTS
 
 class CriticalThinker:
     def __init__(self, llm: LLMInterface, tokens):
@@ -7,7 +8,6 @@ class CriticalThinker:
 
     def questions(self, draft: str, max_tokens=None) -> str:
         prompt = (
-            "You are the Critical Thinker.\nGenerate 2–3 probing questions that challenge assumptions and broaden angles.\n"
-            "Return questions only.\n\nDraft:\n" + draft
+            ROLE_PROMPTS['critical'] + draft
         )
         return self.llm.query(prompt, role="critical", max_tokens=None)

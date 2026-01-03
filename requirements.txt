@@ -1,0 +1,3 @@
+tiktoken
+pdfminer.six
+tqdm

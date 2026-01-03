@@ -28,8 +28,15 @@ ROLE_TEMPS = {
 # Role-specific prompts
 ROLE_PROMPTS = {
     "planner": (
-        "You are the Planner. Break down the user query into clear steps, "
+        "You are the Planner. Break down the user query into clear steps, 3–5 sections. "
         "define objectives, and propose a structured plan."
+        "Each section must be explicitly labeled as sec-1, sec-2, sec-3, etc. "
+        "For each section, provide:\n"
+        "• A clear title\n"
+        "• A concise description of its purpose\n"
+        "• Key points or sub-steps\n\n"
+        "Ensure no section is omitted. Always output in structured Markdown."
+
     ),
     "collector": (
         "Rewrite the following text into ≤{max_words} words while preserving ALL factual details, "
@@ -37,11 +44,18 @@ ROLE_PROMPTS = {
         "relevant to the plan. Keep the output concise and organized."
     ),
     "editor": (
-        "You are the Editor. Refine the draft report into ≤3000 words, "
-        "preserve all factual details, compress redundancy, and improve clarity."
+        "You are the Editor. Refine the draft report by expanding ALL sections "
+        "(sec-1, sec-2, sec-3, …). Ensure each section has a clear title, "
+        "coherent narrative, and preserves ALL factual details. Compress redundancy "
+        "and keep the total length ≤3000 words. Output in structured Markdown."
+        "Produce a Markdown section with heading, short paragraphs, bullets, and cite sources inline by Title or URL.\n\n"
+        
     ),
     "auditor": (
-        "You are the Auditor.\nCheck the draft against the evidence.\n"
+        "You are the Auditor. heck the draft against the evidence. Review ALL sections (sec-1, sec-2, sec-3, …) of the draft. "
+        "Check for factual accuracy, logical consistency, and completeness. "
+        "Return a bullet list of issues for each section, clearly labeled, "
+        "with ≤1000 tokens total. Do not omit any section."
         "Return concise bullets: contradictions, unsupported claims, missing citations, and specific fixes.\n\n"
         "Draft:\n"
     ),
@@ -52,16 +66,36 @@ ROLE_PROMPTS = {
         "Draft:\n"
     ),
     "fulfillment": (
-        "You are the Fulfillment role. Produce the final polished output for the user, "
-        "integrating all improvements."
+        "You are the Fulfillment Checker.\nCompare the user’s query and the draft for language, format, visuals, and direct coverage.\n"
+        "Return a short checklist with Pass/Fail and 1–2 lines of rationale.\n\n"
     ),
     "critical": (
-        "You are the Critical reviewer. Identify any overlooked risks, contradictions, "
-        "or missing perspectives in ≤500 tokens."
+        "You are the Critical Thinker.\nGenerate 2–3 probing questions that challenge assumptions and broaden angles.\n"
+        "Return questions only.\n\nDraft:\n"
     ),
     "Specialist": (
     "You are the Specialist.\nEnrich the draft with domain insights, trade-offs, risks, and examples.\n"
     "Add an 'Insights & Scenarios' subsection. Do not remove citations.\n\nDraft:\n"
+    ),
+    "decompose": (
+        "You are the Decomposer. Given this plan JSON, produce a task graph JSON with:\n"
+        "sections: [{id, title, query, deliverables}],\n"
+        "dependencies: [{from, to}],\n"
+        "metrics: [{name, how_to_measure}].\nReturn STRICT JSON.\n\nPlan:\n"
+    ),
+    "integrate": (
+        f"You are the integrator. Please integrate all chapter drafts, executive summaries, and contextual analyses "
+        f"into a complete Markdown professional report.  and follow this structure:\n\n"
+        "# Executive Summary\n...\n# Table of Contents\n...\n# Overview\n...\n# Chapter Analysis\n...\n"
+        "# Insights and Contexts\n...\n# Visualizations\n...\n# References\n...\n# Appendix\n...\n\n"
+        "Tone: Formal, professional, suitable for a board report.\n\n"
+        "If any chapters or reviews contain diagrams with Mermaid syntax, please retain the original Mermaid code blocks "
+        "for rendering in a browser or Markdown viewer. Do not convert to ASCII.\n\n"
+    ),
+    "integrate_summary": (
+        f"你是執行摘要撰寫者。寫 3–4 段執行摘要，"
+        "簡潔、專業，適合董事會報告。\n\n"
+        "以下是各章節草稿：\n" 
     ),
     
 }

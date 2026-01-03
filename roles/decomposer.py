@@ -1,5 +1,6 @@
 import json
 from utils.llm_interface import LLMInterface
+from utils.config import ROLE_PROMPTS
 
 class Decomposer:
     def __init__(self, llm: LLMInterface, tokens):
@@ -8,10 +9,7 @@ class Decomposer:
 
     def decompose(self, plan: dict, max_tokens=None) -> dict:
         prompt = (
-            "You are the Decomposer. Given this plan JSON, produce a task graph JSON with:\n"
-            "sections: [{id, title, query, deliverables}],\n"
-            "dependencies: [{from, to}],\n"
-            "metrics: [{name, how_to_measure}].\nReturn STRICT JSON.\n\nPlan:\n" + json.dumps(plan, ensure_ascii=False)
+            ROLE_PROMPTS['decompose'] + json.dumps(plan, ensure_ascii=False)
         )
         raw = self.llm.query(prompt, role="decomposer", max_tokens=max_tokens)
         try:
