@@ -1,6 +1,6 @@
 # Self-Refining LLM Chat System
 
-A prototype chat system that combines **LM Studio**, **SearXNG**, and **Docker MCP tools** to create a self-refining retrieval-augmented generation (RAG) loop.  
+A prototype chat system that combines **LM Studio**, **SearXNG** to create a self-refining retrieval-augmented generation (RAG) loop.  
 The system uses an LLM both as a **worker** (search + summarize) and as a **supervisor** (review + refine), iterating until the response meets quality standards.
 
 ---
@@ -18,7 +18,6 @@ The system uses an LLM both as a **worker** (search + summarize) and as a **supe
 1. **LM Studio** – Local LLM server (`http://localhost:1234`) running `openai/gpt-oss-20b`.
 2. **SearXNG** – Local meta-search engine (`http://localhost:8888`) with JSON API.
 3. **Controller Script** – Python orchestrator that manages the loop.
-4. **Docker MCP Tools** – Extend functionality for specialized tasks.
 
 ---
 
