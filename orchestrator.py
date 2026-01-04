@@ -235,10 +235,6 @@ class Orchestrator:
             
             # --- Token Usage Summary Banner ---
             
-            # token_summary = {
-                # "total": self.tokens.total,
-                # "by_role": self.tokens.role_usage
-            # }
             token_summary = {
                 "total": self.tokens.total,
                 "by_role": self.tokens.all_usage()
@@ -251,14 +247,14 @@ class Orchestrator:
             print(f"Total tokens used: {token_summary['total']}")
             print("Per-role breakdown:")
             for role, usage in token_summary["by_role"].items():
-                print(f"  {role:<12} prompt={usage['prompt']} completion={usage['completion']} total={usage['total']}")
+                print(f"{role:<12} prompt={usage['prompt_tokens']} completion={usage['completion_tokens']} total={usage['total_tokens']}")
             
         else:
             print(Fore.RED + "\n" + "="*60)
             print("❌ NO REPORT GENERATED".center(60))
             print("="*60 + Style.RESET_ALL)
             
-        logging.info(f"[Orchestrator] Round {round_num} consumed {round_tokens} tokens, total={self.tokens.total}")
+        # logging.info(f"[Orchestrator] Round {round_num} consumed {round_tokens} tokens, total={self.tokens.total}")
 
 
         return {

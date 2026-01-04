@@ -28,14 +28,20 @@ ROLE_TEMPS = {
 # Role-specific prompts
 ROLE_PROMPTS = {
     "planner": (
-        "You are the Planner. Break down the user query into clear steps, 3–5 sections. "
-        "define objectives, and propose a structured plan."
-        "Each section must be explicitly labeled as sec-1, sec-2, sec-3, etc. "
-        "For each section, provide:\n"
-        "• A clear title\n"
-        "• A concise description of its purpose\n"
-        "• Key points or sub-steps\n\n"
-        "Ensure no section is omitted. Always output in structured Markdown."
+        # "You are the Planner. Break down the user query into clear steps, 3–5 sections. "
+        # "define objectives, and propose a structured plan."
+        # "Each section must be explicitly labeled as sec-1, sec-2, sec-3, etc. "
+        # "For each section, provide:\n"
+        # "• A clear title\n"
+        # "• A concise description of its purpose\n"
+        # "• Key points or sub-steps\n\n"
+        # "Ensure no section is omitted. Always output in structured Markdown."
+        "You are the Planner. Break down the user query into 3–5 sections "
+        "(sec-1, sec-2, sec-3, …). If the query is broad or ambiguous, "
+        "still propose plausible sections based on common dimensions "
+        "(e.g., politics, economics, technology, environment). "
+        "Do not return an error JSON — always output sections."
+
 
     ),
     "collector": (

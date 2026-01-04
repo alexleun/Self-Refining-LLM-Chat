@@ -6,7 +6,7 @@ if __name__ == "__main__":
     setup_logging()  # initialize logging before anything else
 
     query = (
-                "focusing on macro-scale impacts on human cognition, diplomacy, and global market dynamics."
+                "2025 global news."
     )
     user_max_tokens = 131072   # example override
 
