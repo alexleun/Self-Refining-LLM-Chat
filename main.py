@@ -6,11 +6,11 @@ if __name__ == "__main__":
     setup_logging()  # initialize logging before anything else
 
     query = (
-                "2025 global news."
+                "2025 global news year end report"
     )
     user_max_tokens = 131072   # example override
 
-    orchestrator = Orchestrator(language_hint="繁體中文", max_rounds=1, local_evidence_dir=None)
+    orchestrator = Orchestrator(language_hint="繁體中文", max_rounds=5, local_evidence_dir=None)
     result = orchestrator.run(query, max_tokens=user_max_tokens)
 
     print("Project:", result["project_id"])
