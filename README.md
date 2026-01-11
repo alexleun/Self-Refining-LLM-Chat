@@ -1,165 +1,101 @@
-# Self-Refining LLM Chat System
+## 1. Executive Summary
 
-A prototype chat system that combines **LM Studio**, **SearXNG** to create a self-refining retrieval-augmented generation (RAG) loop.  
-The system uses an LLM both as a **worker** (search + summarize) and as a **supervisor** (review + refine), iterating until the response meets quality standards.
+This project has evolved from a standard conversational interface into an **Autonomous Recursive Research Engine**. 
 
----
+While traditional RAG (Retrieval-Augmented Generation) systems perform a linear "Search $\to$ Answer" process, this project implements a **Self-Refining Loop**. It treats the Large Language Model (LLM) not as a chatbot, but as a central processing unit that assumes multiple distinct roles (Planner, Researcher, Auditor, Editor) to iteratively improve the quality of an output before the user ever sees it.
 
-## ✨ Features
-- **Intent Analysis**: LLM interprets user requests and generates search keywords.
-- **Search Integration**: Queries SearXNG (`http://localhost:8888`) for fresh results.
-- **Summarization**: LLM condenses retrieved information into clear answers.
-- **Self-Review Loop**: LLM critiques its own output and refines queries until results are sufficient.
-- **Tool Integration**: Docker MCP provides external capabilities (scraping, file access, APIs).
+The primary goal is to achieve high-fidelity, hallucination-resistant research reports running entirely on local hardware (LM Studio + SearXNG) without relying on external cloud APIs.
 
 ---
 
-## 🏗️ Architecture
-1. **LM Studio** – Local LLM server (`http://localhost:1234`) running `openai/gpt-oss-20b`.
-2. **SearXNG** – Local meta-search engine (`http://localhost:8888`) with JSON API.
-3. **Controller Script** – Python orchestrator that manages the loop.
+## 2. Architectural Achievements
 
----
+The core innovation of this project is the transition from a linear chain to a state-based loop. The system currently implements the following architecture:
 
-# Self-Refining LLM Chat Orchestration
+### 2.1 The Multi-Agent Swarm
+Instead of a single system prompt, the orchestrator dynamically swaps context to simulate a team of experts:
 
-A modular, multi‑role orchestration framework for large language models (LLMs).  
-This project demonstrates how to coordinate specialized roles (Planner, Decomposer, Collector, Editor, Auditor, Specialist, Supervisor, Fulfillment Checker, Critical Thinker, Integrator) into a reproducible pipeline that produces professional, evidence‑driven reports.
+1.  **The Planner:** Analyzes the user's abstract request and breaks it down into concrete, searchable queries.
+2.  **The Collector (Tool User):** Interfaces with a local SearXNG instance to scrape, read, and summarize real-time web data.
+3.  **The Editor:** Synthesizes the collected evidence into a coherent draft.
+4.  **The Auditor (The Critic):** The most critical component. It reads the draft, compares it against the evidence, and assigns a quality score. **If the score is low, it rejects the draft and triggers a new search loop.**
 
----
+### 2.2 The Refinement Loop (The "Self-Correction" Mechanism)
+I have successfully implemented a feedback loop that mimics human revision:
 
-## ✨ Features
-
-- **Role‑based modular design**  
-  Each role lives in its own Python module (`roles/`), making it easy to extend or swap logic independently.
-
-- **Agentic RAG (Retrieval‑Augmented Generation)**  
-  Evidence collection from web search (via SearXNG), deep fetch, and local file ingestion.  
-  Adaptive semantic compression ensures factual detail is preserved while reducing token usage.
-
-- **Iterative refinement loop**  
-  Multi‑round drafting, auditing, enrichment, scoring, and fulfillment checks until quality thresholds are met.
-
-- **Executive summary & integration**  
-  Automatic generation of board‑ready summaries and integrated Markdown reports, preserving diagrams (Mermaid syntax).
-
-- **Transparency & auditability**  
-  - Iteration history saved (`history.json`)  
-  - Evidence pool persisted (`evidence_pool.json`)  
-  - Token usage tracked per role  
-  - Logs written to both file (`sketch_v4.log`) and console
-
-- **Monitoring & feedback**  
-  - Nested progress bars (`tqdm`) for rounds and sections  
-  - Color‑coded console summaries (green/yellow/red) for quality  
-  - Final outcome banner + token usage summary
-
----
-
-## 📂 Project Structure
-
-```
-sketch_v4/
-│
-├── main.py               # CLI harness
-├── orchestrator.py       # Orchestrator class
-│
-├── roles/                # Role modules
-│   ├── planner.py
-│   ├── decomposer.py
-│   ├── collector.py
-│   ├── editor.py
-│   ├── auditor.py
-│   ├── specialist.py
-│   ├── supervisor.py
-│   ├── fulfillment.py
-│   ├── critical.py
-│   └── integrator.py
-│
-└── utils/                # Utilities
-    ├── config.py
-    ├── helpers.py
-    ├── token_counter.py
-    ├── persistence.py
-    └── logging_utils.py
+```mermaid
+graph TD
+    A[User Request] --> B(Planner Agent)
+    B --> C{Search Strategy}
+    C --> D[Collector Agent / SearXNG]
+    D --> E[Evidence Pool]
+    E --> F[Editor Agent writes Draft]
+    F --> G(Auditor Agent Reviews)
+    G -- "Score < 7/10" --> H[Feedback Generation]
+    H --> B
+    G -- "Score >= 7/10" --> I[Final Report Output]
 ```
 
----
-
-## 🚀 Quick Start
-
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/yourusername/self-refining-llm-chat.git
-   cd self-refining-llm-chat
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   Required packages: `requests`, `tqdm`, `colorama`, `dataclasses` (Python 3.7+ includes it).
-
-3. **Run the CLI harness**
-   ```bash
-   python main.py
-   ```
-
-4. **Monitor progress**
-   - Console: progress bars + color‑coded summaries  
-   - Log file: `sketch_v4.log`  
-
-5. **Check outputs**
-   - `final_report.md` → integrated professional report  
-   - `executive_summary.md` → board‑ready summary  
-   - `history.json` → iteration history  
-   - `evidence_pool.json` → collected evidence  
-   - `manifest.json` → artifact manifest  
+### 2.3 Evidence Management
+*   **Dynamic Context Injection:** The system maintains a growing `evidence_pool.json`.
+*   **Source Tracking:** Every claim in the final output is traceable back to a specific URL retrieved during the collection phase.
 
 ---
 
-## 🛠 Configuration
+## 3. Current Capabilities (What Works)
 
-Edit `utils/config.py` to adjust:
-- `LM_STUDIO_URL` → local LM Studio endpoint  
-- `SEARX_URL` → SearXNG search endpoint  
-- `LLM_CFG` → max tokens, timeout  
-- `ROLE_TEMPS` → per‑role temperature settings  
+As of the current build, the system demonstrates the following capabilities:
+
+*   **Autonomous Error Correction:** If the Collector finds irrelevant data, the Auditor catches it, and the Planner rewrites the search terms automatically.
+*   **Privacy-First Architecture:** The entire stack runs offline (air-gapped capable), ensuring no data leaks to OpenAI or Anthropic.
+*   **Structured Output:** The system moves beyond chat bubbles, generating comprehensive Markdown files (`final_report.md`) suitable for professional use.
+*   **Tool Use:** Successful integration with SearXNG for real-time web access.
 
 ---
 
-## 📊 Example Output
+## 4. Technical Challenges & Solutions
 
-Console:
+### Challenge 1: The "Yes-Man" Problem
+*   **Issue:** Smaller local models (7B/8B parameters) tend to be too agreeable when acting as Auditors, approving bad drafts.
+*   **Solution:** I implemented "Chain of Thought" prompting for the Auditor, forcing it to list *negative* aspects before assigning a score. This significantly improved critique quality.
 
-```
-Orchestration rounds:  33%|█████████▎                | 1/3 [00:15<00:30, 15.0s/round]
-Round 1 sections:     100%|█████████████████████████| 3/3 [00:12<00:00,  4.00s/section]
-Round 1 summary: avg_overall=7.25, improvements=2, tokens_used=450   ← (yellow text)
+### Challenge 2: Context Window Saturation
+*   **Issue:** After 3 loops of research, the accumulated text exceeded the 8k/32k context window of local models.
+*   **Solution:** Implemented an intermediate "Summarizer" step. Raw HTML is compressed into semantic bullet points before being added to the Evidence Pool.
 
-============================================================
-⚠️ REVIEW: Report acceptable but improvements suggested
-============================================================
+---
 
-============================================================
-📊 TOKEN USAGE SUMMARY
-============================================================
-Total tokens used: 1450
-Per-role breakdown:
-  planner      prompt=120 completion=300 total=420
-  editor       prompt=200 completion=400 total=600
-  supervisor   prompt=80  completion=10  total=90
+## 5. Roadmap & Next Steps
+
+This report marks the completion of the core logic. The next phase of development focuses on optimization:
+
+1.  **Memory Persistence:** Allow the agents to read previous reports to answer follow-up questions without re-doing research.
+2.  **Parallel Execution:** Currently, searches happen sequentially. I plan to implement `async` processing to allow the Collector to scrape multiple sites simultaneously.
+3.  **UI Overhaul:** Transitioning from a chat interface to a "Dashboard" view, where users can see the agents "thinking" and view the progress of the research loop in real-time.
+
+---
+
+## Appendix: Reproduction Steps
+
+To replicate the current research results locally:
+
+**Prerequisites:**
+*   [LM Studio](https://lmstudio.ai/) (Running a server on port 1234)
+*   [SearXNG](https://github.com/searxng/searxng) (Running locally via Docker)
+*   Python 3.10+
+
+**Installation:**
+```bash
+git clone https://github.com/alexleun/Self-Refining-LLM-Chat.git
+cd Self-Refining-LLM-Chat
+pip install -r requirements.txt
 ```
 
----
+**Configuration:**
+Edit `config.yaml` to point to your local model and search instance.
 
-## 🤝 Contributing
-
-This project is open to requests and contributions.  
-Ideas welcome for:
-- New specialized roles (e.g. Scenario Mapper, Diagram Generator)  
-- Improved scoring rubrics  
-- Alternative evidence sources  
-- Visualization integration  
-
-Fork, open issues, or submit PRs — let’s refine this orchestration together.
+**Execution:**
+```bash
+python main.py
+```
+```
