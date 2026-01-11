@@ -1,16 +1,13 @@
 from orchestrator import Orchestrator
 from utils.logging_utils import setup_logging
-#        "Construct a multidisciplinary argument evaluating whether superintelligence should be developed, "
-#        "focusing on macro-scale impacts on human cognition, diplomacy, and global market dynamics."
+
 if __name__ == "__main__":
     setup_logging()  # initialize logging before anything else
 
-    query = (
-                "2025 global news year end report"
-    )
+    query = ("focusing on macro-scale impacts on human cognition, diplomacy, and global market dynamics.")
     user_max_tokens = 131072   # example override
 
-    orchestrator = Orchestrator(language_hint="繁體中文", max_rounds=5, local_evidence_dir=None)
+    orchestrator = Orchestrator(language_hint="English", max_rounds=3, local_evidence_dir=None)
     result = orchestrator.run(query, max_tokens=user_max_tokens)
 
     print("Project:", result["project_id"])

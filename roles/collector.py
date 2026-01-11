@@ -76,7 +76,7 @@ class Collector:
         
     def collect(self, user_query: str, deep_visit=True, local_dir=None, max_tokens=None):
             # Step 1: run searx search
-            results = self.search_engine.search(user_query, limit=8)
+            results = self.search_engine.search(user_query, limit=4)
 
             enriched = []
             for r in results:
@@ -94,7 +94,7 @@ class Collector:
 
                     # compress + hash
                     snippet = r.get("snippet", "")
-                    max_words = 200 if len(snippet.split()) > 400 else 120
+                    max_words = 1000 if len(snippet.split()) > 1200 else 800
                     r["compressed"] = self.compress_semantic(snippet, max_words=max_words, max_tokens=max_tokens)
                     r["hash"] = file_hash(r["compressed"])
                     r["source_type"] = "html"

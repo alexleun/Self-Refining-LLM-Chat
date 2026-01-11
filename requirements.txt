@@ -1,3 +1,7 @@
 tiktoken
 pdfminer.six
 tqdm
+langchain 
+langchain-core 
+langchain-community 
+langchain-openai

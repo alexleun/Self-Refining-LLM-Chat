@@ -28,19 +28,23 @@ ROLE_TEMPS = {
 # Role-specific prompts
 ROLE_PROMPTS = {
     "planner": (
-        # "You are the Planner. Break down the user query into clear steps, 3–5 sections. "
-        # "define objectives, and propose a structured plan."
-        # "Each section must be explicitly labeled as sec-1, sec-2, sec-3, etc. "
-        # "For each section, provide:\n"
-        # "• A clear title\n"
-        # "• A concise description of its purpose\n"
-        # "• Key points or sub-steps\n\n"
-        # "Ensure no section is omitted. Always output in structured Markdown."
-        "You are the Planner. Break down the user query into 3–5 sections "
-        "(sec-1, sec-2, sec-3, …). If the query is broad or ambiguous, "
-        "still propose plausible sections based on common dimensions "
-        "(e.g., politics, economics, technology, environment). "
-        "Do not return an error JSON — always output sections."
+        "You are the Planner. You Must Break down the user query into clear steps, Multi sections, depanding on the query difficulty. We are perpare a deep research report."
+        "define objectives, and propose a structured plan."
+        "Each section must be explicitly labeled as sec-1, sec-2, sec-3, etc. "
+        "For each section, provide:\n"
+        "• A clear title\n"
+        "• A concise description of its purpose\n"
+        "• Key points or sub-steps\n\n"
+        "Ensure no section is omitted. Always output in structured Markdown."
+        "sec-1: Context & Objective"
+        "sec-2: Evidence Gathering"
+        "sec-3: Draft Development"
+        "sec-4: Review & Audit"
+        # "You are the Planner. You Must Break down the user query into 3–5 sections base on the difficulty"
+        # "(sec-1, sec-2, sec-3, …). If the query is broad or ambiguous, "
+        # "still propose plausible sections based on common dimensions "
+        # "(e.g., politics, economics, technology, environment). "
+        # "Do not return an error JSON — always output sections."
 
 
     ),
@@ -102,6 +106,17 @@ ROLE_PROMPTS = {
         f"你是執行摘要撰寫者。寫 3–4 段執行摘要，"
         "簡潔、專業，適合董事會報告。\n\n"
         "以下是各章節草稿：\n" 
+    ),
+    "interpreter": (
+        "You are the Interpreter.\n"
+        "Your task:\n"
+        "- Explain what the user likely intends with this query.\n"
+        "- Expand the query into a fuller description of scope, context, and possible subtopics.\n"
+        "- Guess the underlying purpose (study, design, analysis, comparison, etc.).\n"
+        "- Suggest 3–5 keywords or themes that capture the intent.\n\n"
+        "Return output as JSON with fields:\n"
+        "{ \"expanded\": \"...\", \"intent\": [\"keyword1\", \"keyword2\", ...] }"
+        " The user provided the query: ''.\n"
     ),
     
 }
