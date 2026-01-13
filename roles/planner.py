@@ -2,6 +2,7 @@ import json
 import logging
 from utils.llm_interface import LLMInterface
 
+
 class Planner:
     def __init__(self, llm: LLMInterface, tokens):
         self.llm = llm
@@ -14,7 +15,7 @@ class Planner:
         - Else: fall back to original LLM-driven parsing.
         """
         if force_hardcode:
-            logging.info("[Planner] Using 9-step scaffold with LLM refinement.")
+            logging.info("[Planner] Using 5-step scaffold with LLM refinement.")
             return self._refined_sections(user_query, max_tokens)
 
         # fallback to original parsing if needed
@@ -26,29 +27,39 @@ class Planner:
         """
         Start with fixed scaffold, then ask LLM to refine each section title + statement.
         """
+
+
         base_steps = [
             "Introduction & Scope",
-            "Historical Context",
-            "Current Landscape",
-            "Key Challenges",
-            "Methodologies",
-            "Case Studies",
-            "Solutions",
-            "Future Trends",
+            #"Historical Context",
+            #"Current Landscape",
+            #"Key Challenges",
+            #"Methodologies",
+            #"Case Studies",
+            #"Solutions",
+            #"Future Trends",
             "Conclusion"
         ]
 
+        prompt = (
+            "We only analysis what steps should be in the research report."
+            "Refer base_steps and user_query."
+            "Analysis user_query, thining report title which is fulfill the user suspected.\n"
+            "Return title line by line ONLY.\n\n"
+            f"base_steps:\n{json.dumps(base_steps, ensure_ascii=False, indent=2)}\n\n"
+            f"user_query:\n{user_query}\n"
+        )
+
+        # Keep the response separate
+        plan_steps_str = self.llm.query(prompt, role="planner", max_tokens=max_tokens)
+        logging.info(f"[Planner] Plan base_steps = {plan_steps_str}")
+        # Split by newline and strip blanks
+        plan_steps = [line.strip() for line in plan_steps_str.splitlines() if line.strip()]
+        print(plan_steps)
+
         refined = []
-        for i, title in enumerate(base_steps, start=1):
-            # prompt = (
-                # f"You are the Planner. The user query is: '{user_query}'.\n\n"
-                # f"Section: {title}\n"
-                # "Write a refined section plan that:\n"
-                # "- Explains how this section relates to the query\n"
-                # "- Suggests 2–3 subtopics or angles to cover\n"
-                # "- Keep it concise (3–4 sentences)\n\n"
-                # "Return JSON: {\"id\": \"sec-X\", \"title\": \"...\", \"statement\": \"...\"}"
-            # )
+        for i, title in enumerate(plan_steps, start=1):
+            print(i, title)
             prompt = (
                 f"You are the Planner. The user query is: '{user_query}'.\n\n"
                 f"Section: {title}\n"

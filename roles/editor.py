@@ -9,21 +9,32 @@ class Editor:
         self.llm = llm
         self.tokens = tokens
 
-        # Define a reusable prompt template
+        # Define a reusable prompt template (chapter-style)
         self.prompt_template = PromptTemplate.from_template(
-            "You are the Editor. Your task is to refine the section '{title}' for the overall query.\n\n"
+            "You are the Editor role. Your task is to write a single **chapter draft** "
+            "for a larger professional report.\n\n"
+            "Section Title: {title}\n\n"
             "Evidence snippets:\n{sources}\n\n"
             "Previous draft:\n{prev_draft}\n\n"
             "Audit feedback:\n{prev_audit}\n\n"
             "Critical questions:\n{prev_critical}\n\n"
             "Guidelines:\n"
-            "- Begin with a Markdown heading for the section title\n"
-            "- Improve clarity, completeness, and logical flow\n"
+            "- Begin with a heading: '## {title}'\n"
+            "- Write 2–3 subsections of content under this heading\n"
+            "- Use clear, professional language suitable for board-level or strategic reports\n"
+            "- Do NOT include:\n"
+            "  * Executive summaries\n"
+            "  * Table of contents\n"
+            "  * References section\n"
+            "  * Global conclusions\n"
+            "- Focus only on the assigned section. Assume other sections will cover different aspects\n"
+            "- Keep formatting consistent: Markdown headings, bullet points, tables where appropriate\n"
+            "- Ensure the draft can be joined seamlessly with other chapters\n"
             "- Address issues flagged in the audit feedback\n"
             "- Incorporate answers or expansions suggested by critical questions\n"
             "- Use evidence snippets to strengthen arguments\n"
             "- Avoid repeating text verbatim; synthesize into a polished narrative\n"
-            "- Write 2–3 well‑developed paragraphs"
+            "- Please write in {language_hint}, and keep it clear and professional."
         )
 
     def draft_section(self, section, sources, language_hint,
@@ -32,7 +43,7 @@ class Editor:
         Refine or draft a section using evidence and previous round artifacts.
         Returns: Markdown draft string
         """
-        sec_title = section.get("title")
+        sec_title = section.get("title", "Untitled Section")
         logging.info(f"[Editor] Drafting/refining section: {sec_title}")
 
         # Fill the template with values
@@ -41,14 +52,14 @@ class Editor:
             sources=sources,
             prev_draft=prev_draft,
             prev_audit=prev_audit,
-            prev_critical=prev_critical
+            prev_critical=prev_critical,
+            language_hint=language_hint
         )
 
         try:
-            # Keep the original LLM call unchanged
             draft = self.llm.query(prompt, role="editor", max_tokens=max_tokens)
         except Exception as e:
             logging.error(f"[Editor] LLM query failed: {e}")
-            draft = f"### {sec_title}\n\n[Editor failed to generate draft]"
+            draft = f"## {sec_title}\n\n[Editor failed to generate draft]"
 
-        return draft
+        return draft.strip()

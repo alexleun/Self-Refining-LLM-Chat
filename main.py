@@ -4,10 +4,10 @@ from utils.logging_utils import setup_logging
 if __name__ == "__main__":
     setup_logging()  # initialize logging before anything else
 
-    query = ("focusing on macro-scale impacts on human cognition, diplomacy, and global market dynamics.")
-    user_max_tokens = 131072   # example override
+    query = ("LLM agent and skill in full auto AI software development")
+    user_max_tokens = 77617   # example override
 
-    orchestrator = Orchestrator(language_hint="English", max_rounds=3, local_evidence_dir=None)
+    orchestrator = Orchestrator(language_hint="English", max_rounds=1, local_evidence_dir=None)
     result = orchestrator.run(query, max_tokens=user_max_tokens)
 
     print("Project:", result["project_id"])

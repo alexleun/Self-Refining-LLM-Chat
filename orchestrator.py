@@ -14,6 +14,7 @@ from roles.fulfillment import FulfillmentChecker
 from roles.critical import CriticalThinker
 from roles.integrator import Integrator
 from roles.interpreter import Interpreter
+from roles.finalizer import Finalizer
 from utils.llm_interface import LLMInterface
 from tqdm import tqdm
 import logging
@@ -45,6 +46,7 @@ class Orchestrator:
         self.critical = CriticalThinker(self.llm, self.tokens)
         self.integrator = Integrator(self.llm, self.tokens)
         self.Interpreter = Interpreter(self.llm, self.tokens)
+        self.Finalizer = Finalizer(self.llm, self.tokens)
 
     def run(self, user_query: str, max_tokens=None):
         self.max_tokens = max_tokens or LLM_CFG.max_tokens
@@ -140,7 +142,8 @@ class Orchestrator:
         # Final integration
         if iteration_history:
             executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
-            final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
+            draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
+            final_report = self.Finalizer.polish_report(draft_final_report, max_tokens=self.max_tokens)
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(final_report)
