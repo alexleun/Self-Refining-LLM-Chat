@@ -94,17 +94,20 @@ ROLE_PROMPTS = {
         "metrics: [{name, how_to_measure}].\nReturn STRICT JSON.\n\nPlan:\n"
     ),
     "integrate": (
-        f"You are the integrator. Please integrate all chapter drafts, executive summaries, and contextual analyses "
+        #f"You are the integrator. Please integrate all chapter drafts, executive summaries, and contextual analyses "
+        f"You are the integrator. Please integrate chapter drafts, and contextual analyses "
         f"into a complete Markdown professional report.  and follow this structure:\n\n"
-        "# Executive Summary\n...\n# Table of Contents\n...\n# Overview\n...\n# Chapter Analysis\n...\n"
-        "# Insights and Contexts\n...\n# Visualizations\n...\n# References\n...\n# Appendix\n...\n\n"
-        "Tone: Formal, professional, suitable for a board report.\n\n"
+        "Remove a contain not related to the report structure e.g. auditor suggestion.\n"
+        #"# Executive Summary\n...\n# Table of Contents\n...\n# Overview\n...\n# Chapter Analysis\n...\n"
+        #"# Insights and Contexts\n...\n# Visualizations\n...\n# References\n...\n# Appendix\n...\n\n"
+        "Tone: Formal, professional, suitable for a research report.\n\n"
         "If any chapters or reviews contain diagrams with Mermaid syntax, please retain the original Mermaid code blocks "
         "for rendering in a browser or Markdown viewer. Do not convert to ASCII.\n\n"
+        "Your writing will be joint with another part of report, don't need to add summary and concusion if in the middle of the report."
     ),
     "integrate_summary": (
         f"你是執行摘要撰寫者。寫 3–4 段執行摘要，"
-        "簡潔、專業，適合董事會報告。\n\n"
+        "簡潔、專業，適合報告。\n\n"
         "以下是各章節草稿：\n" 
     ),
     "interpreter": (

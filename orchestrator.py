@@ -142,14 +142,16 @@ class Orchestrator:
         # Final integration
         if iteration_history:
             executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
+            with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
+                f.write(executive_summary)
             draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
-            final_report = self.Finalizer.polish_report(draft_final_report, max_tokens=self.max_tokens)
+            with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
+                f.write(draft_final_report)
+            final_report = self.Finalizer.polish_report(draft_final_report,self.language_hint ,max_tokens=self.max_tokens)
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(final_report)
 
-            with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
-                f.write(executive_summary)
             # with open(os.path.join(project_id, "history.json"), "w", encoding="utf-8") as f:
                 # json.dump(iteration_history, f, ensure_ascii=False, indent=2)
             # with open(os.path.join(project_id, "evidence_pool.json"), "w", encoding="utf-8") as f:

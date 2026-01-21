@@ -46,7 +46,7 @@ class Integrator:
                 f"Section Title: {title}\n\n"
                 f"Draft:\n{draft}\n\n"
                 f"Critical points:\n{critical}\n\n"
-                f"Please write in {language_hint}, and keep it clear and professional."
+                #f"Please write in {language_hint}, and keep it clear and professional."
             )
 
             try:

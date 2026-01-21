@@ -1,6 +1,10 @@
 import logging
+import re
 from langchain_core.prompts import PromptTemplate
 from utils.llm_interface import LLMInterface
+from langchain_text_splitters import MarkdownHeaderTextSplitter
+
+
 
 class Finalizer:
     """
@@ -19,12 +23,12 @@ class Finalizer:
             "- Keep the report in Markdown format.\n"
             "- Ensure consistent heading levels (use # for title, ## for sections, ### for subsections).\n"
             "- Remove AI-generated chatty phrases (e.g., 'Certainly', 'Below is', 'This summary distills').\n"
+            "- Remove if not related to the report. (e.g. critical question, report comment, report writing suggestion).\n"
             "- Correct Markdown errors in lists, tables, and diagrams.\n"
-            "- Normalize spacing (no duplicate blank lines).\n"
-            "- Maintain professional, board-level tone.\n"
+            "Please write in a professional style, maintaining clarity and consistency."
             "- Do not add new content; only refine and correct.\n\n"
             "Input report chunk:\n{chunk}\n\n"
-            "Please write in a professional style, maintaining clarity and consistency."
+
         )
 
     def polish_chunk(self, chunk: str, max_tokens=None) -> str:
@@ -43,10 +47,19 @@ class Finalizer:
         Divide a large report into chunks, polish each, and recombine.
         """
         logging.info("[Finalizer] Splitting report into chunks")
-        chunks = [report[i:i+chunk_size] for i in range(0, len(report), chunk_size)]
+        # Use LangChain MarkdownHeaderTextSplitter to chunk by headings
+        splitter = MarkdownHeaderTextSplitter(
+            headers_to_split_on=[("##", "Section")]
+            # headers_to_split_on=[("#", "Title"), ("##", "Section"), ("###", "Subsection")]
+        )
+        
+        chunks = splitter.split_text(report)
+        logging.info(f"[Finalizer] Splitting size ={len(chunks)}")
 
         polished_chunks = [self.polish_chunk(c, max_tokens) for c in chunks]
 
         final_report = "\n\n".join(polished_chunks)
+        # Final normalization: collapse excessive blank lines
+        final_report = re.sub(r"\n{3,}", "\n\n", final_report)
         logging.info("[Finalizer] Report polishing complete")
         return final_report
