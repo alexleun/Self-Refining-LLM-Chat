@@ -24,7 +24,8 @@ class Collector:
         return self.llm.query(prompt, role="collector", max_tokens=max_tokens).strip()
 
     def searx_search(self, query: str, limit: int = 15):
-        params = {"q": query, "format": "json", "categories": "general", "language": "en"}
+        # params = {"q": query, "format": "json", "categories": "general", "language": "en"}
+        params = {"q": query, "format": "json", "categories": "general", "limit": limit}
         try:
             resp = requests.get("http://localhost:8888/search", params=params, timeout=15)
             data = resp.json()
@@ -76,7 +77,8 @@ class Collector:
         
     def collect(self, user_query: str, deep_visit=True, local_dir=None, max_tokens=None):
             # Step 1: run searx search
-            results = self.search_engine.search(user_query, limit=4)
+            #results = self.search_engine.search(user_query, limit=4)
+            results = self.searx_search(user_query, limit=4)
 
             enriched = []
             for r in results:
