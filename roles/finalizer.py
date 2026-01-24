@@ -3,6 +3,7 @@ import re
 from langchain_core.prompts import PromptTemplate
 from utils.llm_interface import LLMInterface
 from langchain_text_splitters import MarkdownHeaderTextSplitter
+from utils.config import ROLE_PROMPTS
 
 
 
@@ -18,23 +19,24 @@ class Finalizer:
 
         # Prompt template for polishing
         self.prompt_template = PromptTemplate.from_template(
-            "You are the Finalizer role. Your task is to polish the final report.\n\n"
-            "Guidelines:\n"
-            "- Keep the report in Markdown format.\n"
-            "- Ensure consistent heading levels (use # for title, ## for sections, ### for subsections).\n"
-            "- Remove AI-generated chatty phrases (e.g., 'Certainly', 'Below is', 'This summary distills').\n"
-            "- Remove if not related to the report. (e.g. critical question, report comment, report writing suggestion).\n"
-            "- Correct Markdown errors in lists, tables, and diagrams.\n"
-            "Please write in a professional style, maintaining clarity and consistency."
-            "- Do not add new content; only refine and correct.\n\n"
-            "Input report chunk:\n{chunk}\n\n"
-
+            # "You are the Finalizer role. Your task is to polish the final report.\n\n"
+            # "Guidelines:\n"
+            # "- Keep the report in Markdown format.\n"
+            # "- Ensure consistent heading levels (use # for title, ## for sections, ### for subsections).\n"
+            # "- Remove AI-generated chatty phrases (e.g., 'Certainly', 'Below is', 'This summary distills').\n"
+            # "- Remove if not related to the report. (e.g. critical question, report comment, report writing suggestion).\n"
+            # "- Correct Markdown errors in lists, tables, and diagrams.\n"
+            # "Please write in a professional style, maintaining clarity and consistency."
+            # "- Do not add new content; only refine and correct.\n\n"
+            # "- Please write in {language_hint}, and keep it clear, professional, and accessible."
+            # "Input report chunk:\n{chunk}\n\n"
+        ROLE_PROMPTS['Finalizer']
         )
 
-    def polish_chunk(self, chunk: str, max_tokens=None) -> str:
+    def polish_chunk(self, chunk: str,language_hint = "English", max_tokens=None) -> str:
         """Polish a single chunk of the report."""
         logging.info("[Finalizer] Polishing report chunk")
-        prompt = self.prompt_template.format(chunk=chunk)
+        prompt = self.prompt_template.format(chunk=chunk, language_hint=language_hint)
         try:
             polished = self.llm.query(prompt, role="finalizer", max_tokens=max_tokens)
         except Exception as e:
@@ -42,7 +44,7 @@ class Finalizer:
             polished = chunk
         return polished.strip()
 
-    def polish_report(self, report: str, chunk_size: int = 3000, max_tokens=None ) -> str:
+    def polish_report(self, report: str, chunk_size: int = 3000, language_hint="English", max_tokens=None ) -> str:
         """
         Divide a large report into chunks, polish each, and recombine.
         """
@@ -56,7 +58,7 @@ class Finalizer:
         chunks = splitter.split_text(report)
         logging.info(f"[Finalizer] Splitting size ={len(chunks)}")
 
-        polished_chunks = [self.polish_chunk(c, max_tokens) for c in chunks]
+        polished_chunks = [self.polish_chunk(c, language_hint, max_tokens) for c in chunks]
 
         final_report = "\n\n".join(polished_chunks)
         # Final normalization: collapse excessive blank lines

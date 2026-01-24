@@ -34,14 +34,14 @@ class Auditor:
         prompt = (
             "You are the Auditor. Review the following section draft for accuracy, clarity, "
             "completeness, and consistency against the provided evidence.\n\n"
-            f"Draft:\n{draft}\n\n"
-            f"Evidence:\n{sources}\n\n"
             "Guidelines:\n"
             "- Identify specific issues (e.g., missing evidence, unclear phrasing, contradictions).\n"
             "- Provide explicit, actionable recommendations for improvement.\n"
             "- Organize feedback into categories: Clarity, Evidence, Completeness, Consistency.\n"
             "- Use concise bullet points under each category.\n"
             "- Avoid rewriting the draft; focus on what needs fixing."
+            f"Evidence:\n{sources}\n\n"
+            f"Draft:\n{draft}\n\n"
         )
 
         try:

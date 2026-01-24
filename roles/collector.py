@@ -5,12 +5,14 @@ from utils.pdf_handler import fetch_and_split_pdf
 from utils.helpers import sanitize_filename
 from utils.helpers import file_hash
 from utils.config import ROLE_PROMPTS
+import logging
 
 class Collector:
-    def __init__(self, search_engine, project_id, llm):
+    def __init__(self, search_engine, project_id, limit, llm):
         self.search_engine = search_engine
         self.project_id = project_id
         self.llm = llm
+        self.limit = limit
 
     def compress_semantic(self, snippet: str, max_words: int, max_tokens=None) -> str:
         words = snippet.split()
@@ -26,6 +28,7 @@ class Collector:
     def searx_search(self, query: str, limit: int = 15):
         # params = {"q": query, "format": "json", "categories": "general", "language": "en"}
         params = {"q": query, "format": "json", "categories": "general", "limit": limit}
+        # logging.info(f"[serx_search] {params}")
         try:
             resp = requests.get("http://localhost:8888/search", params=params, timeout=15)
             data = resp.json()
@@ -75,10 +78,11 @@ class Collector:
                         logging.warning(f"Failed to ingest local file: {path} :: {e}")
         return docs
         
-    def collect(self, user_query: str, deep_visit=True, local_dir=None, max_tokens=None):
+    def collect(self, user_query: str, limit=15, deep_visit=True, local_dir=None, max_tokens=None):
             # Step 1: run searx search
             #results = self.search_engine.search(user_query, limit=4)
-            results = self.searx_search(user_query, limit=4)
+            limit = min(self.limit, limit)
+            results = self.searx_search(user_query, limit)
 
             enriched = []
             for r in results:

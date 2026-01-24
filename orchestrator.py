@@ -26,16 +26,17 @@ from utils.section_runner import run_sections
 init(autoreset=True)
 
 class Orchestrator:
-    def __init__(self, language_hint="繁體中文", max_rounds=3, local_evidence_dir=None):
+    def __init__(self, language_hint="English", max_rounds=3, limit=20, local_evidence_dir=None):
         self.language_hint = language_hint
         self.max_rounds = max_rounds
         self.local_evidence_dir = local_evidence_dir
         self.tokens = TokenCounter()
         self.llm = LLMInterface(self.tokens)
+        self.limit = limit
         self.search_engine = SearxSearch(base_url="http://localhost:8888")
         
         self.project_id = f"{slugify_query(language_hint)}_{now_ts()}"
-        self.collector = Collector(self.search_engine, self.project_id, self.llm)
+        self.collector = Collector(self.search_engine, self.project_id, self.limit, self.llm)
         self.planner = Planner(self.llm, self.tokens)
         self.decomposer = Decomposer(self.llm, self.tokens)
         self.editor = Editor(self.llm, self.tokens)
@@ -54,8 +55,8 @@ class Orchestrator:
         logging.info(f"[Interpretation]:done")
         plan = self.planner.plan(interpretation, max_tokens=self.max_tokens)
         logging.info(f"[Planner]:done")
-        sources = self.collector.collect(user_query, max_tokens=self.max_tokens)
-        logging.info(f"[Collector]:done")
+        # sources = self.collector.collect(user_query, max_tokens=self.max_tokens)
+        # logging.info(f"[Collector]:done")
         slug = slugify_query(user_query, max_words=5, max_len=50)
         project_id = f"{slug}_{now_ts()}"
 
@@ -70,13 +71,13 @@ class Orchestrator:
         cumulative_sources = []
         prev_total = 0
         prev_round_outputs = {}  # store outputs per section
-
+        
+        fresh_sources = self.collector.collect(user_query, deep_visit=True, local_dir=self.local_evidence_dir)
+        evidence_paths = save_evidence(project_id, fresh_sources)
+            
         # Outer loop: rounds
         for round_num in tqdm(range(1, self.max_rounds + 1), desc="Orchestration rounds", unit="round"):
-            logging.info(f"=== Round {round_num} start ===")
-            fresh_sources = self.collector.collect(user_query, deep_visit=True, local_dir=self.local_evidence_dir)
-            evidence_paths = save_evidence(project_id, fresh_sources)
-            logging.info(f"[Orchestrator] Sections received Number of sections: {len(plan['sections'])} ")  
+            logging.info(f"[Orchestrator] Round {round_num} start, Sections received Number of sections: {len(plan['sections'])} ")  
             
             section_outputs = run_sections(
                                     user_query,
@@ -124,7 +125,7 @@ class Orchestrator:
 
 
             # Update outer progress bar description with metrics
-            tqdm.write(f"Round {round_num} summary: avg_overall={avg_overall:.2f}, improvements={total_improvements}, tokens_used={round_tokens}")
+            #tqdm.write(f"Round {round_num} summary: avg_overall={avg_overall:.2f}, improvements={total_improvements}, tokens_used={round_tokens}")
             logging.info(f"[ROUND {round_num}] sections={len(section_outputs)} avg_overall={avg_overall:.2f} improvements={total_improvements}")
             logging.info(f"[ROUND {round_num}] tokens_used={round_tokens} total={self.tokens.total}")
             prev_total = self.tokens.total
@@ -136,7 +137,8 @@ class Orchestrator:
                 "tokens_total": self.tokens.total,
                 "sections": section_outputs
             })
-            if avg_overall >= 8.0 and total_improvements == 0:
+            # if avg_overall >= 8.0 and total_improvements == 0:
+            if avg_overall >= 8.0:
                 break
                 
         # Final integration
@@ -147,7 +149,7 @@ class Orchestrator:
             draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
             with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
                 f.write(draft_final_report)
-            final_report = self.Finalizer.polish_report(draft_final_report,self.language_hint ,max_tokens=self.max_tokens)
+            final_report = self.Finalizer.polish_report(draft_final_report,language_hint=self.language_hint ,max_tokens=self.max_tokens)
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(final_report)

@@ -1,7 +1,7 @@
 # utils/config.py
 
 class LLMConfig:
-    def __init__(self, max_tokens: int = 17586, timeout: int = 1200):
+    def __init__(self, max_tokens: int = 131072, timeout: int = 1200):
         self.max_tokens = max_tokens
         self.timeout = timeout
 
@@ -83,10 +83,26 @@ ROLE_PROMPTS = {
         "You are the Critical Thinker.\nGenerate 2–3 probing questions that challenge assumptions and broaden angles.\n"
         "Return questions only.\n\nDraft:\n"
     ),
+    # "Specialist": (
+    # "You are the Specialist.\nEnrich the draft with domain insights, trade-offs, risks, and examples.\n"
+    # "Add an 'Insights & Scenarios' subsection. Do not remove citations.\n\nDraft:\n"
+    # ),
     "Specialist": (
-    "You are the Specialist.\nEnrich the draft with domain insights, trade-offs, risks, and examples.\n"
-    "Add an 'Insights & Scenarios' subsection. Do not remove citations.\n\nDraft:\n"
+        "You are the Specialist.\n"
+        "Your role is to enrich the draft with advanced domain expertise, analytical depth, and practical context.\n"
+        "\n"
+        "Responsibilities:\n"
+        "- Provide nuanced insights that go beyond surface-level explanation, drawing on best practices, case studies, and industry standards.\n"
+        "- Highlight trade-offs, limitations, and risks associated with the topic, including ethical, regulatory, and operational considerations.\n"
+        "- Add concrete examples, scenarios, or mini case studies that illustrate how the concepts apply in real-world settings.\n"
+        "- Where appropriate, integrate cross-disciplinary perspectives (e.g., legal, technical, economic, social) to broaden understanding.\n"
+        "- Maintain all citations and references from the draft; do not remove or alter them.\n"
+        "- Add a dedicated subsection titled 'Insights & Scenarios' that synthesizes your contributions in a structured way.\n"
+        "- Ensure the tone is professional, precise, and suitable for publication.\n"
+        "\n"
+        "Draft:\n"
     ),
+
     "decompose": (
         "You are the Decomposer. Given this plan JSON, produce a task graph JSON with:\n"
         "sections: [{id, title, query, deliverables}],\n"
@@ -106,9 +122,9 @@ ROLE_PROMPTS = {
         "Your writing will be joint with another part of report, don't need to add summary and concusion if in the middle of the report."
     ),
     "integrate_summary": (
-        f"你是執行摘要撰寫者。寫 3–4 段執行摘要，"
-        "簡潔、專業，適合報告。\n\n"
-        "以下是各章節草稿：\n" 
+        "You are the executive abstract writer. Write 3–4 paragraphs of executive abstract.\n"
+        "Concise, professional, and suitable for a report.\n"
+        "Below are drafts of each section:\n"
     ),
     "interpreter": (
         "You are the Interpreter.\n"
@@ -121,5 +137,18 @@ ROLE_PROMPTS = {
         "{ \"expanded\": \"...\", \"intent\": [\"keyword1\", \"keyword2\", ...] }"
         " The user provided the query: ''.\n"
     ),
+    "Finalizer": (
+        "You are the Finalizer role. Your task is to polish the final report.\n\n"
+        "Guidelines:\n"
+        "- Keep the report in Markdown format.\n"
+        "- Ensure consistent heading levels (use # for title, ## for sections, ### for subsections).\n"
+        "- Remove AI-generated chatty phrases (e.g., 'Certainly', 'Below is', 'This summary distills').\n"
+        "- Remove if not related to the report. (e.g. critical question, report comment, report writing suggestion).\n"
+        "- Correct Markdown errors in lists, tables, and diagrams.\n"
+        "Please write in a professional style, maintaining clarity and consistency."
+        "- Do not add new content; only refine and correct.\n\n"
+        "- Please write in {language_hint}, and keep it clear, professional, and accessible."
+        "Input report chunk:\n{chunk}\n\n"
+    )
     
 }

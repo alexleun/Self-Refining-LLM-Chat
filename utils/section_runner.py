@@ -39,20 +39,26 @@ fulfillment, criticalThinker, supervisor, editor, auditor, Specialist):
             prev_draft=prev_draft,
             prev_audit=prev_audit,
             max_tokens=max_tokens)
+        logging.info(f"[section_runner] draft said:\n{draft}")
         audit = auditor.audit_section(draft, ev, max_tokens=max_tokens)
+        logging.info(f"[section_runner] audit said:\n{audit}")
         with open(os.path.join(sec_dir, f"audit_round{round_num}.md"), "w", encoding="utf-8") as f:
             f.write(audit)
         enriched = Specialist.enrich(draft, audit,  max_tokens=max_tokens)
+        logging.info(f"[section_runner] Specialist said:\n{enriched}")
         with open(os.path.join(sec_dir, f"draft_round{round_num}.md"), "w", encoding="utf-8") as f:
             f.write(enriched)
         score = supervisor.score(enriched,  max_tokens=max_tokens)
+        logging.info(f"[section_runner] supervisor said:\n{score}")
         with open(os.path.join(sec_dir, f"score_round{round_num}.json"), "w", encoding="utf-8") as f:
             json.dump(score, f, ensure_ascii=False, indent=2)
         fulfill = fulfillment.check(user_query, enriched,  max_tokens=max_tokens)
+        logging.info(f"[section_runner] fulfillment said:\n{fulfill}")
         with open(os.path.join(sec_dir, f"fulfillment_round{round_num}.md"), "w", encoding="utf-8") as f:
             f.write(fulfill)
         critical = criticalThinker.questions(enriched, max_tokens=max_tokens)
-
+        logging.info(f"[section_runner] criticalThinker said:\n{critical}")
+        
         # Save artifacts
         with open(os.path.join(sec_dir, f"critical_round{round_num}.md"), "w", encoding="utf-8") as f:
             f.write(critical)

@@ -39,7 +39,7 @@ def main(argv=None):
         
     draft_final_report = read_file(input_path)
     logging.info(f"[Finalizer] start")
-    final_report = orchestrator.Finalizer.polish_report(draft_final_report)
+    final_report = orchestrator.Finalizer.polish_report(draft_final_report, language_hint)
     logging.info(f"[Finalizer] Done")
     report_path = os.path.abspath(os.path.join("final_report.md"))
     logging.info(f"[path] {report_path}")

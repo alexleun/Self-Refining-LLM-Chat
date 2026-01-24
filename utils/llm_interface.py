@@ -67,7 +67,7 @@ class LLMInterface:
                 # --- Usage logging ---
                 if "usage" in data:
                     self.tokens.add(role, data["usage"])
-                    logging.info(f"[LLMInterface] role={role} usage={data['usage']}")
+                    # logging.info(f"[LLMInterface] role={role} usage={data['usage']}")
 
                 # --- Response extraction ---
                 if "choices" in data and data["choices"]:
