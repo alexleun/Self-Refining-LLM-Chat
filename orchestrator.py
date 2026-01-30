@@ -142,17 +142,55 @@ class Orchestrator:
                 break
                 
         # Final integration
+        # if iteration_history:
+            
+            # executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
+            # with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
+                # f.write(executive_summary)
+            # draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
+            # with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
+                # f.write(draft_final_report)
+            # final_report = self.Finalizer.polish_report(draft_final_report,language_hint=self.language_hint ,max_tokens=self.max_tokens)
+            # report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
+            # with open(report_path, "w", encoding="utf-8") as f:
+                # f.write(final_report)
+                                
+
+        # --- Final integration ---
         if iteration_history:
-            executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
+            # ✅ pick the round with the highest avg_overall
+            best_round = max(iteration_history, key=lambda r: r["avg_overall"])
+            logging.info(f"[Integration] Using round {best_round['round']} with avg_overall={best_round['avg_overall']:.2f}")
+
+            executive_summary = self.integrator.write_summary(
+                best_round["sections"],
+                self.language_hint,
+                max_tokens=self.max_tokens
+            )
             with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
                 f.write(executive_summary)
-            draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
+
+            draft_final_report = self.integrator.integrate(
+                best_round["sections"],
+                executive_summary,
+                self.language_hint,
+                max_tokens=self.max_tokens
+            )
             with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
                 f.write(draft_final_report)
-            final_report = self.Finalizer.polish_report(draft_final_report,language_hint=self.language_hint ,max_tokens=self.max_tokens)
+
+            final_report = self.Finalizer.polish_report(
+                draft_final_report,
+                language_hint=self.language_hint,
+                max_tokens=self.max_tokens
+            )
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(final_report)
+
+            print("Final professional report saved at:", report_path)
+        else:
+            logging.warning("No iteration history; skipping final_report.md")
 
             # with open(os.path.join(project_id, "history.json"), "w", encoding="utf-8") as f:
                 # json.dump(iteration_history, f, ensure_ascii=False, indent=2)
@@ -161,9 +199,9 @@ class Orchestrator:
             # with open(os.path.join(project_id, "manifest.json"), "w", encoding="utf-8") as f:
                 # json.dump(manifest, f, ensure_ascii=False, indent=2)
 
-            print("Final professional report saved at:", report_path)
-        else:
-            logging.warning("No iteration history; skipping final_report.md and history.json")
+            # print("Final professional report saved at:", report_path)
+        # else:
+            # logging.warning("No iteration history; skipping final_report.md and history.json")
             
         if iteration_history:
             final_avg = iteration_history[-1]["avg_overall"]
@@ -204,6 +242,138 @@ class Orchestrator:
         return {
             "project_id": project_id,
             "final_report_path": os.path.join(project_id, "final_report.md"),
+            "iteration_history": iteration_history,
+            "token_summary": {"total": self.tokens.total, "by_role": self.tokens.role_usage}
+        }
+        
+
+    def resume(self, project_dir: str, max_tokens=None):
+        """
+        Resume an interrupted orchestration run.
+        - Load plan.json from project_dir
+        - Load evidence JSON files
+        - Detect completed section drafts in sections/ folder
+        - Continue remaining rounds until max_rounds
+        """
+
+        self.max_tokens = max_tokens or LLM_CFG.max_tokens
+        plan_path = os.path.join(project_dir, "plan.json")
+        if not os.path.isfile(plan_path):
+            raise RuntimeError(f"plan.json not found in {project_dir}")
+
+        with open(plan_path, "r", encoding="utf-8") as f:
+            plan = json.load(f)
+
+        # Load evidence pool
+        evidence_dir = os.path.join(project_dir, "evidence")
+        evidence_files = glob.glob(os.path.join(evidence_dir, "*.json"))
+        cumulative_sources = []
+        for ef in evidence_files:
+            try:
+                with open(ef, "r", encoding="utf-8") as f:
+                    cumulative_sources.append(json.load(f))
+            except Exception as e:
+                logging.warning("Failed to load evidence %s: %s", ef, e)
+
+        # Detect completed sections
+        sections_dir = os.path.join(project_dir, "sections")
+        completed_sections = {}
+        if os.path.isdir(sections_dir):
+            for sec_id in os.listdir(sections_dir):
+                sec_path = os.path.join(sections_dir, sec_id)
+                if os.path.isdir(sec_path):
+                    md_files = glob.glob(os.path.join(sec_path, "*.md"))
+                    if md_files:
+                        latest_md = max(md_files, key=os.path.getmtime)
+                        completed_sections[sec_id] = latest_md
+
+        logging.info("[Resume] Loaded plan with %d sections", len(plan.get("sections", [])))
+        logging.info("[Resume] Loaded %d evidence files", len(cumulative_sources))
+        logging.info("[Resume] Detected %d completed sections", len(completed_sections))
+
+        iteration_history = []
+        prev_total = self.tokens.total
+        prev_round_outputs = {}
+
+        # Outer loop: resume remaining rounds
+        for round_num in range(1, self.max_rounds + 1):
+            logging.info(f"=== Resume Round {round_num} start ===")
+
+            # Skip sections already completed
+            pending_sections = [
+                s for s in plan["sections"]
+                if s["id"] not in completed_sections
+            ]
+            if not pending_sections:
+                logging.info("[Resume] All sections already completed.")
+                break
+
+            # Collect fresh evidence if needed
+            fresh_sources = self.collector.collect(
+                plan.get("query", ""), deep_visit=True, local_dir=self.local_evidence_dir
+            )
+            evidence_paths = save_evidence(project_dir, fresh_sources)
+
+            section_outputs = run_sections(
+                plan.get("query", ""),
+                pending_sections,
+                project_dir,
+                round_num,
+                fresh_sources,
+                prev_round_outputs,
+                self.language_hint,
+                self.max_tokens,
+                self.fulfillment,
+                self.critical,
+                self.supervisor,
+                self.editor,
+                self.auditor,
+                self.specialist,
+            )
+
+            prev_round_outputs.update({o["section"]["id"]: o for o in section_outputs})
+
+            round_tokens = self.tokens.total - prev_total
+            avg_overall = sum(o["score"].get("overall", 0.0) for o in section_outputs) / max(1, len(section_outputs))
+            total_improvements = sum(len(o["score"].get("improvements", [])) for o in section_outputs)
+
+            logging.info(f"[Resume Round {round_num}] avg_overall={avg_overall:.2f}, improvements={total_improvements}, tokens_used={round_tokens}")
+            prev_total = self.tokens.total
+
+            iteration_history.append({
+                "round": round_num,
+                "avg_overall": avg_overall,
+                "tokens_used": round_tokens,
+                "tokens_total": self.tokens.total,
+                "sections": section_outputs
+            })
+
+            if avg_overall >= 8.0 and total_improvements == 0:
+                break
+
+        # Final integration
+        if iteration_history:
+            executive_summary = self.integrator.write_summary(
+                iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens
+            )
+            draft_final_report = self.integrator.integrate(
+                iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens
+            )
+            final_report = self.Finalizer.polish_report(draft_final_report, max_tokens=self.max_tokens)
+            report_path = os.path.abspath(os.path.join(project_dir, "final_report.md"))
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(final_report)
+
+            with open(os.path.join(project_dir, "executive_summary.md"), "w", encoding="utf-8") as f:
+                f.write(executive_summary)
+
+            print("Final professional report saved at:", report_path)
+        else:
+            logging.warning("[Resume] No iteration history; skipping final_report.md")
+
+        return {
+            "project_id": os.path.basename(project_dir),
+            "final_report_path": os.path.join(project_dir, "final_report.md"),
             "iteration_history": iteration_history,
             "token_summary": {"total": self.tokens.total, "by_role": self.tokens.role_usage}
         }
