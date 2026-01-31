@@ -14,12 +14,32 @@ class Integrator:
     def write_summary(self, sections: list, language_hint: str, max_tokens=None) -> str:
         """
         Generate an executive summary from all section drafts.
+        Uses Option B: summarize each draft individually, then integrate.
         """
-        drafts = [s["draft"] for s in sections]
+        summaries = []
+        for i, s in enumerate(sections, start=1):
+            draft_text = s.get("draft", "")
+            if not draft_text.strip():
+                continue
+    
+            # Summarize each draft separately
+            summary_prompt = (
+                f"You are a summarizer.\n"
+                f"Section {i}: Summarize this draft in 3–4 sentences.\n"
+                f"Keep language clear and accessible for non‑experts.\n\n"
+                f"{draft_text}"
+            )
+            try:
+                summary = self.llm.query(summary_prompt, role="summarizer", max_tokens=512)
+                summaries.append(summary.strip())
+            except Exception as e:
+                summaries.append(f"(Failed to summarize section {i}: {e})")
+    
+        # Now integrate all summaries into one executive summary
         prompt = (
             ROLE_PROMPTS['integrate_summary'] +
-            f"Use {language_hint} write：\n" +
-            json.dumps(drafts, ensure_ascii=False, indent=2)
+            f"Use {language_hint} write:\n" +
+            json.dumps(summaries, ensure_ascii=False, indent=2)
         )
         return self.llm.query(prompt, role="executive", max_tokens=max_tokens)
 
