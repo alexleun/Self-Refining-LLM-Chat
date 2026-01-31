@@ -176,8 +176,7 @@ class Orchestrator:
             final_report = self.Finalizer.polish_report(
                 draft_final_report,
                 language_hint=self.language_hint,
-                max_tokens=self.max_tokens,
-                style=self.report_style  # pass style
+                max_tokens=self.max_tokens
             )
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:
