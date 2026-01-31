@@ -28,10 +28,12 @@ import glob
 init(autoreset=True)
 
 class Orchestrator:
-    def __init__(self, language_hint="English", max_rounds=3, limit=20, local_evidence_dir=None):
+    def __init__(self, language_hint="English", max_rounds=3, limit=20, local_evidence_dir=None, report_style="standard"):
         self.language_hint = language_hint
         self.max_rounds = max_rounds
         self.local_evidence_dir = local_evidence_dir
+        self.report_style = report_style  # "standard" or "wiki"
+
         self.tokens = TokenCounter()
         self.llm = LLMInterface(self.tokens)
         self.limit = limit
@@ -165,7 +167,8 @@ class Orchestrator:
                 best_round["sections"],
                 executive_summary,
                 self.language_hint,
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
+                style=self.report_style  # pass style
             )
             with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
                 f.write(draft_final_report)
@@ -173,7 +176,8 @@ class Orchestrator:
             final_report = self.Finalizer.polish_report(
                 draft_final_report,
                 language_hint=self.language_hint,
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
+                style=self.report_style  # pass style
             )
             report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
             with open(report_path, "w", encoding="utf-8") as f:

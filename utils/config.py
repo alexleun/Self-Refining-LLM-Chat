@@ -40,13 +40,6 @@ ROLE_PROMPTS = {
         "sec-2: Evidence Gathering"
         "sec-3: Draft Development"
         "sec-4: Review & Audit"
-        # "You are the Planner. You Must Break down the user query into 3–5 sections base on the difficulty"
-        # "(sec-1, sec-2, sec-3, …). If the query is broad or ambiguous, "
-        # "still propose plausible sections based on common dimensions "
-        # "(e.g., politics, economics, technology, environment). "
-        # "Do not return an error JSON — always output sections."
-
-
     ),
     "collector": (
         "Rewrite the following text into ≤{max_words} words while preserving ALL factual details, "
@@ -83,10 +76,6 @@ ROLE_PROMPTS = {
         "You are the Critical Thinker.\nGenerate 2–3 probing questions that challenge assumptions and broaden angles.\n"
         "Return questions only.\n\nDraft:\n"
     ),
-    # "Specialist": (
-    # "You are the Specialist.\nEnrich the draft with domain insights, trade-offs, risks, and examples.\n"
-    # "Add an 'Insights & Scenarios' subsection. Do not remove citations.\n\nDraft:\n"
-    # ),
     "Specialist": (
         "You are the Specialist.\n"
         "Your role is to enrich the draft with advanced domain expertise, analytical depth, and practical context.\n"
@@ -110,17 +99,33 @@ ROLE_PROMPTS = {
         "metrics: [{name, how_to_measure}].\nReturn STRICT JSON.\n\nPlan:\n"
     ),
     "integrate": (
-        #f"You are the integrator. Please integrate all chapter drafts, executive summaries, and contextual analyses "
         f"You are the integrator. Please integrate chapter drafts, and contextual analyses "
         f"into a complete Markdown professional report.  and follow this structure:\n\n"
         "Remove a contain not related to the report structure e.g. auditor suggestion.\n"
-        #"# Executive Summary\n...\n# Table of Contents\n...\n# Overview\n...\n# Chapter Analysis\n...\n"
-        #"# Insights and Contexts\n...\n# Visualizations\n...\n# References\n...\n# Appendix\n...\n\n"
         "Tone: Formal, professional, suitable for a research report.\n\n"
         "If any chapters or reviews contain diagrams with Mermaid syntax, please retain the original Mermaid code blocks "
         "for rendering in a browser or Markdown viewer. Do not convert to ASCII.\n\n"
         "Your writing will be joint with another part of report, don't need to add summary and concusion if in the middle of the report."
     ),
+    "WIKI_INTEGERATOR": (
+        "You are the Integrator.\n"
+        "Your task is to merge all section drafts into a cohesive wiki‑style article.\n\n"
+        "Guidelines:\n"
+        "- Use MediaWiki markup conventions:\n"
+        "  * Top‑level sections: '== {title} =='\n"
+        "  * Subsections: '=== {subtopic} ==='\n"
+        "  * Lists: '* item'\n"
+        "  * Tables: '{| ... |}' syntax if needed\n"
+        "  * Links: [[Related Topic]] for cross‑references\n"
+        "- Maintain a neutral, explanatory tone suitable for a general audience.\n"
+        "- Do not include executive summaries or conclusions outside the assigned sections.\n"
+        "- Ensure smooth flow between sections, but keep each section self‑contained.\n"
+        "- Preserve citations and references inline.\n"
+        # "- Write in {language_hint}.\n\n"
+        # "Sections to integrate:\n{sections}\n\n"
+        # "Executive summary:\n{executive_summary}\n"
+    ),
+
     "integrate_summary": (
         "You are the executive abstract writer. Write 3–4 paragraphs of executive abstract.\n"
         "Concise, professional, and suitable for a report.\n"
@@ -148,6 +153,19 @@ ROLE_PROMPTS = {
         "Please write in a professional style, maintaining clarity and consistency."
         "- Do not add new content; only refine and correct.\n\n"
         "- Please write in {language_hint}, and keep it clear, professional, and accessible."
+        "Input report chunk:\n{chunk}\n\n"
+    ),
+        "WIKI_FINALIZER": (
+        "You are the Finalizer.\n"
+        "Polish the integrated draft into a professional wiki‑style article.\n\n"
+        "Guidelines:\n"
+        "- Ensure all headings use MediaWiki markup (==, ===).\n"
+        "- Keep tone neutral, factual, and explanatory.\n"
+        "- Improve clarity for non‑expert readers: define jargon, add context.\n"
+        "- Preserve inline citations and references.\n"
+        "- Ensure formatting consistency: lists, tables, links.\n"
+        "- At the end, add a short 'Notes on changes' section in wiki style.\n"
+        "- Write in {language_hint}.\n\n"
         "Input report chunk:\n{chunk}\n\n"
     )
     

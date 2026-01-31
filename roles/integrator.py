@@ -24,7 +24,7 @@ class Integrator:
         return self.llm.query(prompt, role="executive", max_tokens=max_tokens)
 
     def integrate(self, sections: list, executive_summary: str,
-                  language_hint: str, max_tokens=None) -> str:
+                  language_hint: str, max_tokens=None, style="standard") -> str:
         """
         Assemble the final report section by section.
         Each section draft is handled individually to avoid token overload.
@@ -41,8 +41,13 @@ class Integrator:
             critical = sec.get("critical", "")
 
             # Optional: refine each section draft individually with LLM
+            if style == "standard": 
+                prompt_style = "integrate"
+            if style == "wiki":
+                prompt_style="WIKI_INTEGERATOR"
+            
             prompt = (
-                ROLE_PROMPTS['integrate'] +
+                ROLE_PROMPTS[prompt_style] +
                 f"Section Title: {title}\n\n"
                 f"Draft:\n{draft}\n\n"
                 f"Critical points:\n{critical}\n\n"

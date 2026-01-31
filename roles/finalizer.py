@@ -13,30 +13,25 @@ class Finalizer:
     Ensures consistent Markdown, removes AI chat artifacts, and polishes style.
     """
 
-    def __init__(self, llm: LLMInterface, max_tokens: int = 2048):
+    def __init__(self, llm: LLMInterface, max_tokens: int = 2048, style = "standard"):
         self.llm = llm
         self.max_tokens = max_tokens
+        
 
-        # Prompt template for polishing
-        self.prompt_template = PromptTemplate.from_template(
-            # "You are the Finalizer role. Your task is to polish the final report.\n\n"
-            # "Guidelines:\n"
-            # "- Keep the report in Markdown format.\n"
-            # "- Ensure consistent heading levels (use # for title, ## for sections, ### for subsections).\n"
-            # "- Remove AI-generated chatty phrases (e.g., 'Certainly', 'Below is', 'This summary distills').\n"
-            # "- Remove if not related to the report. (e.g. critical question, report comment, report writing suggestion).\n"
-            # "- Correct Markdown errors in lists, tables, and diagrams.\n"
-            # "Please write in a professional style, maintaining clarity and consistency."
-            # "- Do not add new content; only refine and correct.\n\n"
-            # "- Please write in {language_hint}, and keep it clear, professional, and accessible."
-            # "Input report chunk:\n{chunk}\n\n"
-        ROLE_PROMPTS['Finalizer']
-        )
 
-    def polish_chunk(self, chunk: str,language_hint = "English", max_tokens=None) -> str:
+    def polish_chunk(self, chunk: str,language_hint = "English", max_tokens=None, style = "standard") -> str:
         """Polish a single chunk of the report."""
         logging.info("[Finalizer] Polishing report chunk")
-        prompt = self.prompt_template.format(chunk=chunk, language_hint=language_hint)
+        if style == "standard":
+            prompt_style = "Finalizer"
+        if style == "wiki":
+            prompt_style = "WIKI_FINALIZER"
+
+        # Prompt template for polishing
+        prompt_template = PromptTemplate.from_template(
+            ROLE_PROMPTS[prompt_style]
+        )
+        prompt = prompt_template.format(chunk=chunk, language_hint=language_hint)
         try:
             polished = self.llm.query(prompt, role="finalizer", max_tokens=max_tokens)
         except Exception as e:
