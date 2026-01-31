@@ -22,6 +22,8 @@ from colorama import Fore, Style, init
 from utils.config import LLM_CFG
 from utils.search_engine import SearxSearch
 from utils.section_runner import run_sections
+import glob
+
 
 init(autoreset=True)
 
@@ -137,25 +139,14 @@ class Orchestrator:
                 "tokens_total": self.tokens.total,
                 "sections": section_outputs
             })
+            # inside run(), after iteration_history.append(...)
+            with open(os.path.join(project_id, "iteration_history.json"), "w", encoding="utf-8") as f:
+                json.dump(iteration_history, f, ensure_ascii=False, indent=2)
+            
             # if avg_overall >= 8.0 and total_improvements == 0:
             if avg_overall >= 8.0:
                 break
                 
-        # Final integration
-        # if iteration_history:
-            
-            # executive_summary = self.integrator.write_summary(iteration_history[-1]["sections"], self.language_hint, max_tokens=self.max_tokens)
-            # with open(os.path.join(project_id, "executive_summary.md"), "w", encoding="utf-8") as f:
-                # f.write(executive_summary)
-            # draft_final_report = self.integrator.integrate(iteration_history[-1]["sections"], executive_summary, self.language_hint, max_tokens=self.max_tokens)
-            # with open(os.path.join(project_id, "draft_final_report.md"), "w", encoding="utf-8") as f:
-                # f.write(draft_final_report)
-            # final_report = self.Finalizer.polish_report(draft_final_report,language_hint=self.language_hint ,max_tokens=self.max_tokens)
-            # report_path = os.path.abspath(os.path.join(project_id, "final_report.md"))
-            # with open(report_path, "w", encoding="utf-8") as f:
-                # f.write(final_report)
-                                
-
         # --- Final integration ---
         if iteration_history:
             # ✅ pick the round with the highest avg_overall
@@ -255,7 +246,17 @@ class Orchestrator:
         - Detect completed section drafts in sections/ folder
         - Continue remaining rounds until max_rounds
         """
-
+        # Load iteration history
+        history_path = os.path.join(project_dir, "iteration_history.json")
+        iteration_history = []
+        if os.path.isfile(history_path):
+            with open(history_path, "r", encoding="utf-8") as f:
+                iteration_history = json.load(f)
+            logging.info("[Resume] Loaded iteration history with %d rounds", len(iteration_history))
+        else:
+            logging.warning("[Resume] No iteration_history.json found, starting fresh")
+            
+            
         self.max_tokens = max_tokens or LLM_CFG.max_tokens
         plan_path = os.path.join(project_dir, "plan.json")
         if not os.path.isfile(plan_path):
@@ -304,8 +305,32 @@ class Orchestrator:
                 s for s in plan["sections"]
                 if s["id"] not in completed_sections
             ]
+            # if not pending_sections:
+                # logging.info("[Resume] All sections already completed.")
+                # break
             if not pending_sections:
                 logging.info("[Resume] All sections already completed.")
+                section_outputs = []
+                for sec_id, md_path in completed_sections.items():
+                    try:
+                        with open(md_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        section_outputs.append({
+                            "section": {"id": sec_id, "title": sec_id},
+                            "draft": content,   # <-- integrator needs this
+                            "score": {"overall": 8.0, "improvements": []}
+                        })
+                    except Exception as e:
+                        logging.warning("Failed to load completed section %s: %s", sec_id, e)
+
+                if section_outputs:
+                    iteration_history.append({
+                        "round": 0,
+                        "avg_overall": sum(o["score"]["overall"] for o in section_outputs) / len(section_outputs),
+                        "tokens_used": 0,
+                        "tokens_total": self.tokens.total,
+                        "sections": section_outputs
+                    })
                 break
 
             # Collect fresh evidence if needed
